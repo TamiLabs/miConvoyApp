@@ -1,0 +1,6 @@
+// src/scss/paginas/_inicio.scss
+@use "../constantes" as *;
+
+.paginaInicio {
+  @include tarjeta;
+}

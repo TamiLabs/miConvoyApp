@@ -1,0 +1,54 @@
+// src/scss/componentes/_formulario.scss
+@use "../constantes" as *;
+
+.formulario {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.formulario__campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.formulario__etiqueta {
+  font-size: 0.85rem;
+  color: $colorTextoSuave;
+}
+
+.formulario__entrada {
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: 0.6rem 0.75rem;
+  background-color: $colorTarjeta;
+}
+
+.formulario__error {
+  color: #b91c1c;
+  font-size: 0.9rem;
+}
+
+.formulario__acciones {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.formulario__botonPrincipal {
+  background-color: $colorPrimario;
+  color: #fff;
+  border: none;
+  border-radius: $radioBorde;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+}
+
+.formulario__botonSecundario {
+  background-color: transparent;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+}

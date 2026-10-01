@@ -1,0 +1,115 @@
+// src/scss/paginas/_perfil.scss
+@use "../constantes" as *;
+
+.paginaPerfil {
+  @include tarjeta;
+  display: flex;
+  flex-direction: column;
+  gap: $espaciadoBase;
+}
+
+.paginaPerfil__cabecera {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.paginaPerfil__foto {
+  width: 3rem;
+  height: 3rem;
+  border-radius: 999px;
+  object-fit: cover;
+}
+
+.paginaPerfil__nombre {
+  font-size: 1.2rem;
+}
+
+.paginaPerfil__subtitulo {
+  font-size: 1rem;
+}
+
+.paginaPerfil__crear {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.paginaPerfil__google {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.paginaPerfil__divisor {
+  text-align: center;
+  color: $colorTextoSuave;
+  font-size: 0.9rem;
+}
+
+.paginaPerfil__botonGoogle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  background-color: $colorTarjeta;
+  padding: 0.6rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.paginaPerfil__iconoGoogle {
+  font-size: 1.1rem;
+}
+
+.paginaPerfil__cochesCabecera {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.paginaPerfil__botonAnadir {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 999px;
+  border: none;
+  background-color: $colorPrimario;
+  color: #fff;
+  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.paginaPerfil__coches {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.paginaPerfil__tarjetaCoche {
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.paginaPerfil__cocheTitulo {
+  font-size: 1rem;
+}
+
+.paginaPerfil__botonEliminar {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  background: none;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  color: $colorTextoSuave;
+}

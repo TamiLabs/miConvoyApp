@@ -1,0 +1,7 @@
+// src/scss/paginas/_enLinea.scss
+// Estilos de la página /online.
+@use "../constantes" as *;
+
+.paginaEnLinea {
+  @include tarjeta;
+}

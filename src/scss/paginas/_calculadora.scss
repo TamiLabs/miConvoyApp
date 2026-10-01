@@ -1,0 +1,6 @@
+// src/scss/paginas/_calculadora.scss
+@use "../constantes" as *;
+
+.paginaCalculadora {
+  @include tarjeta;
+}

@@ -1,0 +1,68 @@
+// src/scss/_constantes.scss
+// Variables y mixins globales de MiConvoy.
+// Se importan con `@use "../constantes" as *;` desde cualquier parcial.
+
+// --- Paleta --------------------------------------------------------------
+// "Carretera al atardecer": fondo frío y claro, como el asfalto a la luz
+// del día (se lee bien al aire libre y queda limpio en una captura para
+// compartir por WhatsApp), un único acento cálido y vivo reservado para
+// las acciones principales y el resultado del cálculo, y un azul
+// carretera profundo para la marca, los enlaces y lo secundario.
+
+$colorFondo: #f1f4f6;
+$colorTexto: #14181f;
+$colorTextoSuave: #5b6472;
+
+$colorPrimario: #ff6b4a; // acento vivo — acciones principales, resultado
+$colorPrimarioOscuro: #e0532f; // hover / pulsado
+$colorPrimarioSuave: #ffe3d8; // fondos muy sutiles sobre el acento
+
+$colorSecundario: #1e3a5f; // azul carretera — marca, botón secundario, enlaces
+$colorSecundarioOscuro: #15293f;
+
+$colorBorde: #dce1e6;
+$colorTarjeta: #ffffff;
+$colorAviso: #ffe8d6;
+
+$colorDeshabilitadoFondo: #e4e7ea;
+$colorDeshabilitadoTexto: #9aa1a9;
+
+// --- Tipografía ------------------------------------------------------------
+// Space Grotesk en titulares (carácter técnico, de salpicadero/odómetro,
+// a tono con coches y cifras) y Plus Jakarta Sans en el resto (cercana y
+// muy legible). Cargadas en _global.scss; si se usa next/font/google más
+// adelante, estas variables no cambian.
+
+$fuenteTitular:
+  "Space Grotesk",
+  system-ui,
+  -apple-system,
+  sans-serif;
+
+$fuenteBase:
+  "Plus Jakarta Sans",
+  system-ui,
+  -apple-system,
+  "Segoe UI",
+  Roboto,
+  sans-serif;
+
+$radioBorde: 12px;
+$espaciadoBase: 1rem;
+$anchoMaximo: 480px;
+
+$movil: 480px;
+$tableta: 768px;
+$escritorio: 1024px;
+
+@mixin tarjeta {
+  background-color: $colorTarjeta;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: $espaciadoBase;
+}
+
+@mixin centrarMovil {
+  max-width: $anchoMaximo;
+  margin-inline: auto;
+}

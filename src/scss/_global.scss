@@ -1,0 +1,203 @@
+// src/scss/_global.scss
+// Estilos base accesibles desde cualquier página sin importar nada más.
+// Se aplican por el simple hecho de usar las clases en el JSX.
+@use "constantes" as *;
+
+@import url("https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap");
+
+body {
+  background-color: $colorFondo;
+  color: $colorTexto;
+  font-family: $fuenteBase;
+  -webkit-font-smoothing: antialiased;
+}
+
+// --- Titulares y texto -----------------------------------------------------
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: $fuenteTitular;
+  font-weight: 700;
+  line-height: 1.2;
+  color: $colorTexto;
+  margin: 0 0 0.5em;
+}
+
+h1 {
+  font-size: 2rem;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  font-size: 1.5rem;
+}
+
+h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+h4 {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+p {
+  font-size: 1rem;
+  line-height: 1.6;
+  margin: 0 0 1em;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+// --- Campos de formulario ---------------------------------------------------
+
+input,
+select,
+textarea {
+  display: block;
+  width: 100%;
+  font-family: $fuenteBase;
+  font-size: 1rem;
+  color: $colorTexto;
+  background-color: $colorTarjeta;
+  border: 1.5px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: 0.75em 1em;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+
+  &::placeholder {
+    color: $colorTextoSuave;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: $colorPrimario;
+    box-shadow: 0 0 0 3px rgba($colorPrimario, 0.2);
+  }
+
+  &:disabled {
+    background-color: $colorDeshabilitadoFondo;
+    color: $colorDeshabilitadoTexto;
+    cursor: not-allowed;
+  }
+}
+
+textarea {
+  resize: vertical;
+  min-height: 6rem;
+}
+
+select {
+  cursor: pointer;
+}
+
+// --- Botones -----------------------------------------------------------
+// Tres variantes: principal (acción destacada), secundario (acción
+// alternativa) y ghost, que es también el aspecto de "deshabilitado" —
+// por eso los botones principal/secundario heredan ese mismo aspecto al
+// llevar el atributo `disabled`, sin necesidad de cambiar de clase.
+
+%botonBase {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5em;
+  font-family: $fuenteBase;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.75em 1.5em;
+  border-radius: $radioBorde;
+  border: none;
+  cursor: pointer;
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    transform 0.05s ease;
+
+  &:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  &:disabled {
+    cursor: not-allowed;
+  }
+}
+
+.botonPrincipal {
+  @extend %botonBase;
+  background-color: $colorPrimario;
+  color: #ffffff;
+
+  &:hover:not(:disabled) {
+    background-color: $colorPrimarioOscuro;
+  }
+
+  &:disabled {
+    background-color: $colorDeshabilitadoFondo;
+    color: $colorDeshabilitadoTexto;
+  }
+}
+
+.botonSecundario {
+  @extend %botonBase;
+  background-color: transparent;
+  color: $colorSecundario;
+  border: 1.5px solid $colorSecundario;
+
+  &:hover:not(:disabled) {
+    background-color: rgba($colorSecundario, 0.08);
+  }
+
+  &:disabled {
+    border-color: $colorBorde;
+    color: $colorDeshabilitadoTexto;
+  }
+}
+
+.botonGhost {
+  @extend %botonBase;
+  background-color: $colorDeshabilitadoFondo;
+  color: $colorDeshabilitadoTexto;
+
+  &:hover {
+    background-color: $colorDeshabilitadoFondo;
+  }
+}
+
+// --- Bloques ya existentes ---------------------------------------------
+
+.contenedorPrincipal {
+  @include centrarMovil;
+  padding: $espaciadoBase;
+}
+
+.tarjeta {
+  @include tarjeta;
+}
+
+.textoSuave {
+  color: $colorTextoSuave;
+}
+
+.aviso {
+  background-color: $colorAviso;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: $espaciadoBase;
+}
+
+// --- Accesibilidad -------------------------------------------------------
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

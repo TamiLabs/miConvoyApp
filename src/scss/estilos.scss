@@ -1,0 +1,15 @@
+// src/scss/estilos.scss
+// Fichero padre: importa todo el SCSS de la app.
+// Se compila a src/css/estilos.css (comprimido) con:
+//   npm run scss
+// En desarrollo, `npm run dev` vigila esta carpeta y recompila al guardar.
+@use "constantes" as *;
+@use "normalize";
+@use "global";
+@use "componentes/navegacionPestanas";
+@use "componentes/ventanaEmergente";
+@use "componentes/formulario";
+@use "paginas/calculadora";
+@use "paginas/perfil";
+@use "paginas/enLinea";
+@use "paginas/inicio";
