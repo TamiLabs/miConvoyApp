@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Autenticación (NextAuth + Google) — tablas estándar del adaptador de Prisma.
+// Solo se usan cuando el servidor está activo; en Modo Free el login con
+// Google se resuelve en el cliente sin tocar estas tablas.
+// ---------------------------------------------------------------------------
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique // identificador natural para enlazar con el perfil local
+  name      String?
+  image     String?
+  createdAt DateTime @default(now())
+
+  accounts          Account[]
+  sessions          Session[]
+  coches            Coche[]
+  viajesOrganizados Viaje[]    @relation("Organizador")
+  participaciones   Pasajero[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ---------------------------------------------------------------------------
+// Entidades del dominio
+// ---------------------------------------------------------------------------
+
+model Coche {
+  id        String @id @default(cuid())
+  marca     String
+  modelo    String
+  matricula String
+  consumo   Float // l/100km
+
+  // Si dos personas comparten un coche físico, cada una lo da de alta por
+  // separado: no hay una única fila compartida entre varios propietarios.
+  propietario   User   @relation(fields: [propietarioId], references: [id])
+  propietarioId String
+
+  cochesDelViaje CocheDelViaje[]
+}
+
+model Viaje {
+  id                String    @id @default(cuid())
+  origen            String
+  destino           String
+  fecha             DateTime?
+  idaYVuelta        Boolean   @default(true)
+  distanciaKm       Float
+  precioCombustible Float
+
+  // "free" = creado sin cuenta y subido después; "online" = creado ya con cuenta.
+  modoOrigen String @default("online")
+
+  // Solo se genera cuando el viaje es un convoy en Modo Online.
+  enlaceInvitacion String? @unique
+
+  organizador   User   @relation("Organizador", fields: [organizadorId], references: [id])
+  organizadorId String
+
+  coches CocheDelViaje[]
+  gastos GastoAdicional[]
+
+  // Snapshot inmutable del resultado ya calculado (incluye el redondeo aplicado).
+  // Si la fórmula de cálculo cambia en el futuro, este campo NO se recalcula:
+  // refleja siempre lo que se calculó en su momento.
+  resultado Json?
+
+  createdAt DateTime @default(now())
+}
+
+model CocheDelViaje {
+  id String @id @default(cuid())
+
+  viaje   Viaje  @relation(fields: [viajeId], references: [id])
+  viajeId String
+
+  coche   Coche?  @relation(fields: [cocheId], references: [id])
+  cocheId String? // null si el conductor no tiene perfil/coche guardado
+
+  conductorNombre           String
+  incluirConductorEnReparto Boolean @default(true)
+
+  // Se usa cuando el viaje viene de Modo Free: solo se conoce el número de
+  // pasajeros, no su identidad individual.
+  numeroPasajerosLibre Int?
+
+  // Se usa en Modo Online: pasajeros identificados uno a uno.
+  // Límite de 5 pasajeros por coche — validado en la lógica de negocio,
+  // no como restricción de esquema.
+  pasajeros Pasajero[]
+}
+
+model Pasajero {
+  id String @id @default(cuid())
+
+  cocheDelViaje   CocheDelViaje @relation(fields: [cocheDelViajeId], references: [id])
+  cocheDelViajeId String
+
+  persona   User   @relation(fields: [personaId], references: [id])
+  personaId String
+
+  viajeId String // desnormalizado únicamente para el índice único de abajo
+
+  // Un mismo pasajero (por su gmail) solo puede estar en un coche a la vez
+  // dentro de un viaje/convoy.
+  @@unique([viajeId, personaId])
+}
+
+model GastoAdicional {
+  id      String @id @default(cuid())
+  viaje   Viaje  @relation(fields: [viajeId], references: [id])
+  viajeId String
+  nombre  String
+  importe Float
+}

@@ -1,0 +1,32 @@
+{
+  "name": "mi-convoy",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "concurrently \"npm:scss:watch\" \"next dev\"",
+    "build": "npm run scss && next build",
+    "start": "next start",
+    "scss": "sass src/scss/estilos.scss src/css/estilos.css --style=compressed --no-source-map",
+    "scss:watch": "sass --watch src/scss/estilos.scss:src/css/estilos.css --style=compressed --no-source-map",
+    "format": "prettier --write .",
+    "db:up": "docker compose up -d",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.18.0",
+    "next": "^14.2.0",
+    "react": "^18.3.0",
+    "react-dom": "^18.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "concurrently": "^10.0.5",
+    "prettier": "^3.9.9",
+    "prisma": "^5.18.0",
+    "sass": "^1.105.1",
+    "typescript": "^5.5.0"
+  }
+}
