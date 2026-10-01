@@ -4,10 +4,11 @@
 // PerfilLocal, definidas en tiposModoGratis.ts).
 
 import type { Almacenamiento } from "./almacenamiento";
-import type { EntradaHistorial, PerfilLocal } from "./tiposModoGratis";
+import type { EntradaHistorial, PerfilLocal, UltimoViajeLocal } from "./tiposModoGratis";
 
 const CLAVE_HISTORIAL = "miconvoy_historial";
 const CLAVE_PERFIL = "miconvoy_perfil";
+const CLAVE_ULTIMO_VIAJE = "miconvoy_ultimo_viaje";
 const MAXIMO_HISTORIAL = 10;
 
 export async function obtenerHistorial(
@@ -39,4 +40,21 @@ export async function guardarPerfil(
   perfil: PerfilLocal,
 ): Promise<void> {
   await almacenamiento.guardar(CLAVE_PERFIL, perfil);
+}
+
+export async function eliminarPerfil(almacenamiento: Almacenamiento): Promise<void> {
+  await almacenamiento.limpiar(CLAVE_PERFIL);
+}
+
+export async function obtenerUltimoViaje(
+  almacenamiento: Almacenamiento,
+): Promise<UltimoViajeLocal | null> {
+  return almacenamiento.obtener<UltimoViajeLocal>(CLAVE_ULTIMO_VIAJE);
+}
+
+export async function guardarUltimoViaje(
+  almacenamiento: Almacenamiento,
+  viaje: UltimoViajeLocal,
+): Promise<void> {
+  await almacenamiento.guardar(CLAVE_ULTIMO_VIAJE, viaje);
 }

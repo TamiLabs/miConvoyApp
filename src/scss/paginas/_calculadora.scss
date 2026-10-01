@@ -1,6 +1,223 @@
-// src/scss/paginas/_calculadora.scss
+// src/scss/paginas/_calculadora.scss — mobile-first (una columna).
 @use "../constantes" as *;
 
 .paginaCalculadora {
   @include tarjeta;
+  display: flex;
+  flex-direction: column;
+  gap: $espaciadoBase;
+}
+
+.calculadora__pasos {
+  list-style: none;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0;
+}
+
+.calculadora__paso {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: $colorTextoSuave;
+  border-bottom: 2px solid $colorBorde;
+  padding-bottom: 0.4rem;
+  text-align: center;
+}
+
+.calculadora__pasoNumero {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.4rem;
+  height: 1.4rem;
+  border-radius: 999px;
+  border: 1px solid $colorBorde;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.calculadora__paso--activo {
+  color: $colorTexto;
+  border-bottom-color: $colorPrimario;
+  font-weight: 700;
+}
+
+.calculadora__paso--hecho {
+  color: $colorPrimario;
+  border-bottom-color: $colorPrimario;
+}
+
+.calculadora__interruptor {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.calculadora__interruptor input {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.calculadora__conBoton {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calculadora__conBoton .formulario__entrada {
+  flex: 1;
+  min-width: 0;
+}
+
+.calculadora__tarjetaCoche {
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.calculadora__fila {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.calculadora__gasto {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.calculadora__gasto .formulario__entrada:first-child {
+  flex: 1;
+  min-width: 0;
+}
+
+.calculadora__gastoImporte {
+  max-width: 6rem;
+}
+
+.calculadora__navegacion {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: space-between;
+}
+
+.calculadora__pasoCoches {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.calculadora__pasoCochesValor {
+  min-width: 2.5rem;
+  text-align: center;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.calculadora__pasoCoches .formulario__botonSecundario {
+  flex: 1;
+  min-height: 2.75rem;
+}
+
+.calculadora__pasoCoches .formulario__botonSecundario:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.calculadora__navegacion .formulario__botonPrincipal,
+.calculadora__navegacion .formulario__botonSecundario {
+  flex: 1;
+  min-height: 2.75rem;
+}
+
+.calculadora__recibo {
+  @include tarjeta;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  text-align: center;
+  background-color: $colorTarjeta;
+}
+
+.calculadora__reciboRuta {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.calculadora__reciboCoche {
+  border-top: 1px dashed $colorBorde;
+  padding-top: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.calculadora__reciboConductor {
+  font-weight: 700;
+}
+
+.calculadora__reciboImporte {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: $colorPrimarioOscuro;
+  margin-bottom: 0;
+}
+
+.calculadora__reciboLogo {
+  padding-top: 0.75rem;
+  border-top: 1px dashed $colorBorde;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: $colorTextoSuave;
+  font-size: 0.85rem;
+}
+
+.calculadora__accionesResultado {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.calculadora__accionesResultado button {
+  min-height: 2.75rem;
+}
+
+.calculadora__historial {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  border-top: 1px solid $colorBorde;
+  padding-top: $espaciadoBase;
+}
+
+.calculadora__historialLista {
+  display: grid;
+  gap: 0.5rem;
+}
+
+.calculadora__historialItem {
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  padding: 0.6rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.calculadora__historialRuta {
+  font-weight: 700;
+}
+
+@media (min-width: 768px) {
+  .calculadora__accionesResultado {
+    flex-direction: row;
+  }
 }

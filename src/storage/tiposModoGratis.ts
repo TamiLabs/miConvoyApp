@@ -8,6 +8,7 @@ export interface PerfilLocal {
   correo: string; // viene del token de Google Identity Services, no se escribe a mano
   nombre: string;
   foto?: string;
+  tieneCoche: boolean;
   coches: CocheLocal[];
 }
 
@@ -41,16 +42,44 @@ export interface EntradaHistorial {
   fecha: string; // fecha ISO
   esConvoy: boolean;
   idaYVuelta: boolean;
+  origen?: string;
+  destino?: string;
   distanciaKm: number;
   precioCombustible: number;
   coches: CocheDelViajeLocal[];
   gastosAdicionales: GastoAdicionalLocal[];
   // Foto inmutable — no se recalcula si cambia la fórmula en el futuro.
   resultado: ResultadoCalculo;
+  // Desglose por coche del mismo cálculo (para convoys).
+  detallePorCoche?: ResultadoCalculo[];
+}
+
+// Formulario de la calculadora: como CocheDelViajeLocal pero con el consumo
+// a mano (puede venir del perfil o escribirse libremente).
+export interface CocheFormularioLocal {
+  nombreConductor: string;
+  idCoche?: string; // referencia a un CocheLocal del perfil, si existe
+  consumo: number; // l/100km
+  numeroPasajeros: number;
+  incluirConductorEnReparto: boolean;
+}
+
+// Últimos datos del formulario, para reutilizarlos al abrir la calculadora.
+export interface UltimoViajeLocal {
+  origen: string;
+  destino: string;
+  distanciaKm: number | null;
+  precioPorLitro: number | null;
+  idaYVuelta: boolean;
+  esConvoy: boolean;
+  coches: CocheFormularioLocal[];
+  gastosAdicionales: GastoAdicionalLocal[];
 }
 
 // --- Mapeo al sincronizar con el servidor -----------------------------------
-// EntradaHistorial          → Viaje (origenModo: "gratis")
+// EntradaHistorial          → Viaje (origenModo: "gratis"; origen/destino van
+//                              a Viaje.origen/Viaje.destino, detallePorCoche
+//                              dentro de Viaje.resultado)
 // CocheDelViajeLocal        → CocheDelViaje (con numeroPasajerosLibre relleno;
 //                              sin Pasajero individuales, porque en Modo Gratis
 //                              los pasajeros no están identificados uno a uno)

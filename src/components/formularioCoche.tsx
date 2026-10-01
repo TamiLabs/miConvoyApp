@@ -13,6 +13,8 @@ export interface DatosFormularioCoche {
 interface PropiedadesFormularioCoche {
   alGuardar: (datos: DatosFormularioCoche) => void;
   alCancelar: () => void;
+  valoresIniciales?: DatosFormularioCoche;
+  textoBoton?: string;
 }
 
 // Acepta "6,5", "6.5", "1.234,56" o "1,234.56": el último separador es el
@@ -46,11 +48,18 @@ export function interpretarNumero(texto: string): number | null {
   return Number.isFinite(numero) ? numero : null;
 }
 
-export function FormularioCoche({ alGuardar, alCancelar }: PropiedadesFormularioCoche) {
-  const [marca, setMarca] = useState("");
-  const [modelo, setModelo] = useState("");
-  const [matricula, setMatricula] = useState("");
-  const [consumoTexto, setConsumoTexto] = useState("");
+export function FormularioCoche({
+  alGuardar,
+  alCancelar,
+  valoresIniciales,
+  textoBoton = "Guardar coche",
+}: PropiedadesFormularioCoche) {
+  const [marca, setMarca] = useState(valoresIniciales?.marca ?? "");
+  const [modelo, setModelo] = useState(valoresIniciales?.modelo ?? "");
+  const [matricula, setMatricula] = useState(valoresIniciales?.matricula ?? "");
+  const [consumoTexto, setConsumoTexto] = useState(
+    valoresIniciales ? String(valoresIniciales.consumo).replace(".", ",") : "",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const alEnviar = (evento: React.FormEvent) => {
@@ -122,7 +131,7 @@ export function FormularioCoche({ alGuardar, alCancelar }: PropiedadesFormulario
           Cancelar
         </button>
         <button type="submit" className="formulario__botonPrincipal">
-          Guardar coche
+          {textoBoton}
         </button>
       </div>
     </form>
