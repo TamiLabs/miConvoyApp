@@ -22,7 +22,10 @@
   border: 1px solid $colorBorde;
   border-radius: $radioBorde;
   padding: 0.6rem 0.75rem;
+  min-height: 2.75rem;
+  font-size: 1rem; // 16px: evita el zoom automático en iOS
   background-color: $colorTarjeta;
+  width: 100%;
 }
 
 .formulario__error {
@@ -42,6 +45,7 @@
   border: none;
   border-radius: $radioBorde;
   padding: 0.6rem 1rem;
+  min-height: 2.75rem;
   cursor: pointer;
 }
 
@@ -50,5 +54,6 @@
   border: 1px solid $colorBorde;
   border-radius: $radioBorde;
   padding: 0.6rem 1rem;
+  min-height: 2.75rem;
   cursor: pointer;
 }

@@ -1,0 +1,48 @@
+// src/scss/componentes/_mapa.scss — mapa y autocompletado de direcciones.
+@use "../constantes" as *;
+
+.mapaViaje {
+  height: 220px;
+  width: 100%;
+  border-radius: $radioBorde;
+  border: 1px solid $colorBorde;
+  z-index: 0;
+}
+
+.campoDireccion {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.campoDireccion__lista {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  list-style: none;
+  margin: 0.25rem 0 0;
+  padding: 0.25rem;
+  background-color: $colorTarjeta;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  max-height: 12rem;
+  overflow-y: auto;
+}
+
+.campoDireccion__opcion {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  min-height: 2.75rem;
+  cursor: pointer;
+}
+
+.campoDireccion__opcion:hover {
+  background-color: $colorFondo;
+}

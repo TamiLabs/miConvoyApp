@@ -11,116 +11,106 @@ Orden: por página, de funcionalidad grande a pequeña. Cada sub-tarea es un fut
 ### 1.1 Crear perfil con Google + fallback manual — ✅ Hecho
 
 Crear el perfil si no existe: botón real de Google (GIS vía `@react-oauth/google`: `GoogleLogin` típico + botón propio `Continuar con Google` con icono Font Awesome) y, sin client ID, formulario local de correo + nombre. Guarda en `localStorage` vía adaptador.
-Estado actual: implementado en `src/components/crearPerfil.tsx`. Falta pulir (ver 1.6).
+Estado actual: implementado en `src/components/crearPerfil.tsx`.
 
 ### 1.2 Dar de alta un coche en popup reutilizable — ✅ Hecho
 
-Formulario de alta (marca, modelo, matrícula, consumo L/100km) dentro del componente reutilizable `VentanaEmergente` (cierra con ✕, fondo y Escape). Acepta `,` o `.` en decimales (`interpretarNumero`).
+Formulario de alta (marca, modelo, matrícula, consumo L/100km, precio €/L y tipo diésel/gasolina/eléctrico) dentro del componente reutilizable `VentanaEmergente` (cierra con ✕, fondo y Escape). Acepta `,` o `.` en decimales (`interpretarNumero`).
 Estado: `src/components/formularioCoche.tsx`, `src/components/ventanaEmergente.tsx`.
 
 ### 1.3 Listar coches en tarjetas + eliminar — ✅ Hecho
 
 Una vez creado el perfil, sus coches aparecen como tarjetas con marca/modelo, matrícula y consumo, más botón `+` (icono Font Awesome `faPlus`) para añadir.
-Estado: `src/app/perfil/page.tsx`. Incluye eliminar; falta editar (ver 1.4).
+Estado: `src/app/perfil/page.tsx`. Incluye eliminar y editar (ver 1.4).
 
-### 1.4 Editar un coche existente — ⬜ Pendiente
+### 1.4 Editar un coche existente — ✅ Hecho
 
-Reabrir `FormularioCoche` precargado desde la tarjeta del coche y guardar cambios en el perfil local.
-Criterios: misma validación que el alta; el consumo editado se usa en próximos cálculos, no reescribe historiales.
+Reabre `FormularioCoche` precargado (`valoresIniciales`) desde la tarjeta y guarda cambios en el perfil local. El consumo editado se usa en próximos cálculos, no reescribe historiales.
+Estado: `src/app/perfil/page.tsx` + `FormularioCoche`.
 
-### 1.5 Cerrar sesión / borrar perfil local — ⬜ Pendiente
+### 1.5 Marcar "tengo coche / no tengo coche" — ✅ Hecho
 
-Botón para eliminar el perfil guardado (clave `miconvoy_perfil`) y volver al estado "crear perfil". Necesario también para descartar nombres guardados con mala codificación.
-Criterios: pide confirmación; no toca el historial salvo que se pida.
+Interruptor en el perfil (`PerfilLocal.tieneCoche`); sin coche, la sección de coches se oculta y la calculadora acepta consumo manual.
+Estado: `src/app/perfil/page.tsx`.
 
-### 1.6 Aviso de crear contraseña con servidor activo — ⬜ Pendiente
+### 1.6 Olvidar en este dispositivo (con correo recordado) — ✅ Hecho
 
-Cuando `SERVIDOR_ACTIVADO`, mostrar en el perfil el aviso de crear contraseña para proteger el historial si otro dispositivo usa el mismo gmail.
-Criterios: solo visible con servidor activo; enlaza al futuro registro.
+Botón "Olvidar en este dispositivo" con confirmación: elimina `miconvoy_perfil` y vuelve al login (apartado Cuenta). El historial se conserva y el correo se recuerda (`miconvoy_ultimo_correo`) para precargarlo al volver.
+Estado: `src/app/perfil/page.tsx` (`eliminarPerfil`, `guardarUltimoCorreo`).
 
-### 1.7 Botón "Subir perfil e historial" — ⬜ Pendiente
+### 1.7 Aviso de crear contraseña con servidor activo — ⬜ Pendiente (base UI hecha)
 
-Con servidor activo, subir perfil e historial a la cuenta del servidor (mapeo `EntradaHistorial → Viaje`, ver 9.3).
-Criterios: acción manual con confirmación y resumen de subidos.
+La zona "Servidor" del perfil muestra el aviso y los botones solo con `SERVIDOR_ACTIVADO`; sin backend, los botones muestran nota de pendiente. Falta el registro real cuando exista servidor.
+
+### 1.8 Botón "Subir perfil e historial" — ⬜ Pendiente (base UI hecha)
+
+Mismo estado que 1.7: UI presente con nota de pendiente. Falta el mapeo real contra el backend (ver 9.3).
 
 ---
 
 ## 2. Calculadora Modo Gratis (`/calculadora`)
 
-### 2.1 Flujo por pasos con flechas atrás/adelante — ⬜ Pendiente
+### 2.1 Flujo por pasos con flechas atrás/adelante — ✅ Hecho
 
-Pantalla por pasos hasta el resultado, navegación con flechas. Maquetar el esqueleto aunque los pasos se rellenen en issues siguientes.
-Criterios: funciona solo con cliente; no exige cuenta.
+Pasos Viaje → Coches → Gastos → Resultado con indicador de progreso y navegación Atrás/Siguiente. Todo en cliente, sin cuenta.
+Estado: `src/app/calculadora/page.tsx`.
 
-### 2.2 Paso origen (geolocalización actual) + destino — ⬜ Pendiente
+### 2.2 Paso origen (geolocalización actual) + destino — ✅ Hecho (base)
 
-Elegir destino y posición de partida usando `navigator.geolocation`.
-Criterios: pide permiso, muestra errores (denegado, sin señal) y permite escribir origen/destino a mano.
+Campos origen/destino con autocompletado (ORS Geocode), botón "usar mi posición" (`navigator.geolocation`, crea punto exacto) y mini-mapa Leaflet/OSM con ambos puntos y la ruta.
 
-### 2.3 Cálculo de distancia con OpenRouteService — ⬜ Pendiente
+### 2.3 Cálculo de distancia con OpenRouteService — ✅ Hecho
 
-Llamar a la API externa para obtener los km del trayecto.
-Criterios: necesita internet (no es 100% offline); clave en variable de entorno; gestión de errores y cuota.
+Botón "Calcular distancia automáticamente" (requiere elegir ambas sugerencias): `driving-car/geojson` rellena los km, muestra duración y dibuja la ruta en el mapa. Clave en `NEXT_PUBLIC_ORS_API_KEY`; sin puntos exactos o sin key, se sigue en manual.
 
-### 2.4 Campo manual de km alternativo — ⬜ Pendiente
+### 2.4 Campo manual de km alternativo — ✅ Hecho
 
-Si falla la API o no hay conexión, permitir introducir los km a mano para no bloquear el cálculo.
-Criterios: visible como alternativa siempre, no solo en error.
+La distancia se escribe a mano (acepta `,` y `.`), así el cálculo nunca queda bloqueado. La UI lo indica.
 
-### 2.5 Selección de coche (del perfil o manual) — ⬜ Pendiente
+### 2.5 Selección de coche (del perfil o manual) — ✅ Hecho
 
-Si hay perfil, elegir uno de sus coches (el consumo viene del alta); si no hay perfil, pedir marca/modelo/consumo manualmente.
-Criterios: crear viaje no requiere cuenta.
+Si hay perfil con coches, desplegable "¿Qué coche vas a usar?" por cada coche del viaje: consumo y precio quedan internos (más etiqueta del tipo de combustible); si no, consumo y precio manuales. Crear viaje no requiere cuenta.
 
-### 2.6 Reutilizar últimos datos introducidos — ⬜ Pendiente
+### 2.6 Reutilizar últimos datos introducidos — ✅ Hecho
 
-Precargar conductor, pasajeros, coche y precio del combustible de la última vez.
-Criterios: leído de `localStorage`; se puede cambiar en cada cálculo.
+Al calcular se guarda el formulario (`miconvoy_ultimo_viaje`) y al abrir se precarga: origen, destino, distancia, precio, ida/vuelta, convoy, coches y gastos.
+Estado: `obtenerUltimoViaje` / `guardarUltimoViaje`.
 
-### 2.7 Opción "¿Es convoy?" con tarjetas por coche — ⬜ Pendiente
+### 2.7 Opción "¿Es convoy?" con tarjetas por coche — ✅ Hecho
 
-Por defecto un coche; con la opción, elegir nº de coches y mostrar por cada uno una tarjeta con nombre del conductor y nº de pasajeros.
-Criterios: un convoy = viaje con >1 coche, sin entidad distinta.
+Por defecto un coche; con la opción, selector de nº de coches (máx. 6) y una tarjeta por coche con conductor, consumo, pasajeros e incluir-conductor. Un convoy = viaje con >1 coche.
 
-### 2.8 Casilla "¿Ida y vuelta?" marcada por defecto — ⬜ Pendiente
+### 2.8 Casilla "¿Ida y vuelta?" marcada por defecto — ✅ Hecho
 
-Si está marcada, el combustible se multiplica x2 antes del redondeo; si no, solo ida.
-Criterios: la lógica ya existe en `calculadora.ts`; falta la UI.
+Si está marcada, el combustible se multiplica x2 antes del redondeo (lógica en `calculadora.ts`, UI en paso Viaje).
 
-### 2.9 Incluir / no incluir al conductor en el reparto — ⬜ Pendiente
+### 2.9 Incluir / no incluir al conductor en el reparto — ✅ Hecho
 
-Si no se incluye, los ocupantes le compensan (le "pagan la gasolina").
-Criterios: lógica ya en `calculadora.ts`; falta UI por coche.
+Checkbox por coche. Si no se incluye, los ocupantes le compensan.
 
-### 2.10 Gastos adicionales antes de "Calcular viaje" — ⬜ Pendiente
+### 2.10 Gastos adicionales antes de "Calcular viaje" — ✅ Hecho
 
-Lista de gastos sueltos (peajes, aparcamiento…) con nombre e importe; se suman al combustible antes de repartir y redondear.
-Criterios: añadir/quitar filas; importes aceptan `,` y `.`.
+Filas nombre + importe con añadir/quitar; aceptan `,` y `.`. En convoy se reparten a partes iguales entre coches (indicado en la UI).
 
-### 2.11 Botón "Calcular viaje" + validaciones — ⬜ Pendiente
+### 2.11 Botón "Calcular viaje" + validaciones — ✅ Hecho
 
-Valida distancia, consumo, precio, pasajeros y ejecuta `calcularCoche` / `calcularConvoy`.
-Criterios: errores claros en móvil; deshabilitado hasta datos mínimos.
+Valida distancia, conductor, consumo y precio (por coche: interno del perfil u manual), ocupantes (≥1, y ≥2 si el conductor no paga) y gastos; ejecuta `calcularConvoy`. No guarda nada: solo muestra el resultado.
 
-### 2.12 Resumen editable + botón "Recalcular" — ⬜ Pendiente
+### 2.12 Resumen editable + botón "Recalcular" — ✅ Hecho
 
-Antes del resultado, lista (no `<ul>`) con los datos introducidos, editable; al editar aparece "Recalcular".
-Criterios: no recalcula solo hasta pulsar el botón.
+Los pasos son el resumen editable (botón "Editar datos" desde el resultado); si se cambia algo tras calcular, aviso + botón "Recalcular". "Finalizar viaje" guarda en el historial; recalcular tras editar permite finalizar de nuevo.
 
-### 2.13 Tarjeta de resultado tipo "recibo" — ⬜ Pendiente
+### 2.13 Tarjeta de resultado tipo "recibo" — ✅ Hecho (base)
 
-Resultado vistoso para captura y WhatsApp: ruta, fecha, ida/vuelta, conductor destacado, fila por pasajero con su importe y logo al pie. Convoy: un bloque por coche.
-Criterios: 100% móvil, vertical, legible en captura.
+Recibo vertical con ruta, fecha, ida/vuelta, conductor destacado, importe por persona y total por coche, total del convoy y pie "MiConvoy". Estilos simples, pendientes de diseño final.
 
-### 2.14 Compartir como imagen (Web Share + PNG) — ⬜ Pendiente
+### 2.14 Compartir como imagen (Web Share + PNG) — ⬜ Pendiente (parcial: texto sí)
 
-Botón compartir con `navigator.share` + librería tipo `html-to-image` para generar el PNG de la tarjeta.
-Criterios: funciona en Android y iOS 16.4+; fallback a descarga si no hay share.
+Implementado compartir/copiar como texto (`navigator.share` con fallback a portapapeles). Falta el PNG (`html-to-image`).
 
-### 2.15 Copiar resultado como texto — ⬜ Pendiente
+### 2.15 Copiar resultado como texto — ✅ Hecho
 
-Botón secundario que copia el resumen para pegarlo en el chat.
-Criterios: formato corto con ruta, total y deudas por pasajero.
+Botón que copia ruta, ida/vuelta, pago por persona y totales por coche.
 
 ---
 
@@ -136,33 +126,32 @@ Estado: `src/calculadora.ts`.
 Casos: solo ida, ida/vuelta, con/sin conductor, gastos extra, redondeos (3,7→4 · 3,2→3,5), convoy coche a coche.
 Criterios: script de test ejecutable sin levantar la app.
 
-### 3.3 Congelar resultado calculado en historial — ✅/⬜ Parcial
+### 3.3 Congelar resultado calculado en historial — ✅ Hecho
 
-Los tipos ya guardan `resultado` como snapshot inmutable (`tiposModoGratis.ts`); falta usarlo al guardar cada cálculo (ver 4.1) y no recalcular nunca registros viejos.
+Cada cálculo guarda `resultado` + `detallePorCoche` como snapshot inmutable; los registros viejos nunca se recalculan.
+Estado: tipos + guardado en `PaginaCalculadora`.
 
 ---
 
 ## 4. Historial local
 
-### 4.1 Guardar cada cálculo en el historial (máx. 10) — ⬜ Pendiente
+### 4.1 Guardar al "Finalizar viaje" (máx. 10, solo si activo) — ✅ Hecho
 
-Al calcular, añadir `EntradaHistorial` con el resultado ya calculado; el más reciente primero, descartando el más antiguo.
-Estado: funciones listas (`obtenerHistorial`, `anadirEntradaHistorial`); falta llamarlas desde la calculadora y su UI.
+Calcular no guarda: solo "Finalizar viaje" añade `EntradaHistorial` (la más reciente primero, se descarta la más antigua), y solo si el historial está activado en el perfil. Recalcular tras editar permite guardar de nuevo.
+Estado: `alFinalizar` en la calculadora + `obtenerHistorialActivo`.
 
-### 4.2 Ver historial de viajes — ⬜ Pendiente
+### 4.2 Ver historial en el perfil + interruptor on/off — ✅ Hecho (base)
 
-Lista de los últimos cálculos con fecha, ruta y total.
-Criterios: lee solo de `miconvoy_historial`; vacío con mensaje amable.
+Apartado Historial en `/perfil` con interruptor "Guardar historial de viajes", lista con ruta, fecha, ida/vuelta y total, botón vaciar y aviso local. Sin vista detalle todavía.
 
-### 4.3 Botón vaciar historial — ⬜ Pendiente
+### 4.3 Botón vaciar historial — ✅ Hecho
 
 Borra todos los registros con confirmación.
-Estado: función `limpiarHistorial` lista; falta el botón.
+Estado: `limpiarHistorial` + botón en el perfil.
 
-### 4.4 Aviso de pérdida de datos al borrar caché — ⬜ Pendiente
+### 4.4 Aviso de pérdida de datos al borrar caché — ✅ Hecho
 
-Aviso claro (no banner intrusivo) de que borrar caché/datos del navegador elimina perfil e historial.
-Criterios: visible en perfil y/o historial.
+Nota visible en perfil y en historial: todo es local, si se borra la caché se pierde.
 
 ### 4.5 Botón manual "Sincronizar datos" — ⬜ Pendiente
 
@@ -243,9 +232,9 @@ Estado: `CrearPerfil` manual.
 
 Se optó por Google Identity Services desde el Modo Gratis. Queda extenderlo a NextAuth en Online (ver 8.2).
 
-### 7.4 Crear viaje Gratis sin cuenta; Online con cuenta — ⬜ Pendiente
+### 7.4 Crear viaje Gratis sin cuenta; Online con cuenta — ✅/⬜ Parcial
 
-Regla de negocio a aplicar en las UIs y routers cuando exista el servidor.
+La calculadora Gratis no exige cuenta (hecho). Falta exigir cuenta en Online cuando exista.
 
 ---
 
@@ -277,9 +266,9 @@ Criterios: decisión documentada en README.
 
 ## 9. Mapas y geolocalización (con vista a Capacitor)
 
-### 9.1 Geo web con `navigator.geolocation` — ⬜ Pendiente
+### 9.1 Geo web con `navigator.geolocation` — ✅/⬜ Parcial
 
-Usar en origen (2.2) y mapa online (5.6) con la misma capa de utilidades.
+En uso para el origen en la calculadora; falta reutilizar la misma capa en el mapa online (5.6).
 
 ### 9.2 Mapa del convoy (Leaflet/OSM o MapLibre) — ⬜ Pendiente
 
@@ -287,7 +276,7 @@ Gratuito, sin facturación, compatible con WebView de Capacitor.
 
 ### 9.3 Mapeo sync `EntradaHistorial → Viaje` — ⬜ Pendiente
 
-`EntradaHistorial→Viaje(modoOrigen:"gratis")`, `CocheDelViajeLocal→CocheDelViaje(numeroPasajerosLibre)`, `GastoAdicionalLocal→GastoAdicional`, `PerfilLocal.coches→Coche`.
+`EntradaHistorial→Viaje(modoOrigen:"gratis")`, `CocheDelViajeLocal→CocheDelViaje(numeroPasajerosLibre)`, `GastoAdicionalLocal→GastoAdicional`, `PerfilLocal.coches→Coche`. Tipos locales ya preparados (origen/destino, detallePorCoche).
 
 ### 9.4 Health check del backend + degradado — ⬜ Pendiente
 
@@ -301,9 +290,9 @@ Además de `SERVIDOR_ACTIVADO` (✅ hecho en `configuracion.ts`), llamada de sal
 
 Público sin registro; variable de servidor en `false`.
 
-### 10.2 PWA instalable Android/iOS + responsive móvil — ⬜ Pendiente
+### 10.2 PWA instalable Android/iOS + responsive móvil — ✅/⬜ Parcial
 
-Manifest, iconos, Service Worker; vista 100% móvil pero responsive.
+Responsive móvil hecho (una columna, táctil 44px+, inputs 16px sin zoom iOS, popup bottom-sheet). Falta manifest, iconos y Service Worker.
 
 ### 10.3 Actualizaciones transparentes o con aviso — ⬜ Pendiente
 
@@ -324,7 +313,7 @@ Justificación de background para Apple cuando toque.
 ### 11.1 Sistema SCSS global compilado a CSS — ✅ Hecho
 
 `src/scss` (`_constantes`, `_normalize`, `_global`, páginas, componentes) → `src/css/estilos.css` comprimido; `npm run dev` vigila cambios; sin imports por página.
-Estado: implementado.
+Estado: implementado (+ estilos de calculadora y perfil).
 
 ### 11.2 Prettier + `npm run format` — ✅ Hecho
 
@@ -336,7 +325,7 @@ Ficheros renombrables y variables internas traducidas (los exigidos por Next/Pri
 
 ### 11.4 Iconos Font Awesome (todas las variantes free) — ✅ Hecho
 
-`brands`, `solid`, `regular` + `react-fontawesome` instalados; usados en login Google y botón añadir coche.
+`brands`, `solid`, `regular` + `react-fontawesome` instalados; usados en login Google y botones.
 
 ### 11.5 Estructura monorepo `apps/packages` — ⬜ Pendiente (decisión)
 
