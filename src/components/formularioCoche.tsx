@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import type { CocheLocal } from "@/storage/tiposModoGratis";
+import {
+  ETIQUETAS_COMBUSTIBLE,
+  type CocheLocal,
+  type TipoCombustible,
+} from "@/storage/tiposModoGratis";
 
 export interface DatosFormularioCoche {
   marca: string;
   modelo: string;
   matricula: string;
   consumo: number;
+  precioPorLitro: number;
+  tipoCombustible: TipoCombustible;
 }
 
 interface PropiedadesFormularioCoche {
@@ -60,11 +66,20 @@ export function FormularioCoche({
   const [consumoTexto, setConsumoTexto] = useState(
     valoresIniciales ? String(valoresIniciales.consumo).replace(".", ",") : "",
   );
+  const [precioTexto, setPrecioTexto] = useState(
+    valoresIniciales && valoresIniciales.precioPorLitro > 0
+      ? String(valoresIniciales.precioPorLitro).replace(".", ",")
+      : "",
+  );
+  const [tipoCombustible, setTipoCombustible] = useState<TipoCombustible>(
+    valoresIniciales?.tipoCombustible ?? "gasolina",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const alEnviar = (evento: React.FormEvent) => {
     evento.preventDefault();
     const consumo = interpretarNumero(consumoTexto);
+    const precioPorLitro = interpretarNumero(precioTexto);
     if (!marca.trim() || !modelo.trim() || !matricula.trim()) {
       setError("Rellena marca, modelo y matrícula.");
       return;
@@ -73,12 +88,18 @@ export function FormularioCoche({
       setError("El consumo debe ser un número mayor que 0 (vale con , o .).");
       return;
     }
+    if (precioPorLitro === null || precioPorLitro <= 0) {
+      setError("El precio del combustible debe ser mayor que 0 (vale con , o .).");
+      return;
+    }
     setError(null);
     alGuardar({
       marca: marca.trim(),
       modelo: modelo.trim(),
       matricula: matricula.trim().toUpperCase(),
       consumo,
+      precioPorLitro,
+      tipoCombustible,
     });
   };
 
@@ -124,6 +145,31 @@ export function FormularioCoche({
           inputMode="decimal"
           required
         />
+      </label>
+      <label className="formulario__campo">
+        <span className="formulario__etiqueta">Precio combustible (€/L)</span>
+        <input
+          className="formulario__entrada"
+          value={precioTexto}
+          onChange={(e) => setPrecioTexto(e.target.value)}
+          placeholder="p. ej. 1,65 o 1.60"
+          inputMode="decimal"
+          required
+        />
+      </label>
+      <label className="formulario__campo">
+        <span className="formulario__etiqueta">Tipo de combustible</span>
+        <select
+          className="formulario__entrada"
+          value={tipoCombustible}
+          onChange={(e) => setTipoCombustible(e.target.value as TipoCombustible)}
+        >
+          {(Object.keys(ETIQUETAS_COMBUSTIBLE) as TipoCombustible[]).map((tipo) => (
+            <option key={tipo} value={tipo}>
+              {ETIQUETAS_COMBUSTIBLE[tipo]}
+            </option>
+          ))}
+        </select>
       </label>
       {error ? <p className="formulario__error">{error}</p> : null}
       <div className="formulario__acciones">

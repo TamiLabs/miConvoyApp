@@ -9,6 +9,8 @@ import type { EntradaHistorial, PerfilLocal, UltimoViajeLocal } from "./tiposMod
 const CLAVE_HISTORIAL = "miconvoy_historial";
 const CLAVE_PERFIL = "miconvoy_perfil";
 const CLAVE_ULTIMO_VIAJE = "miconvoy_ultimo_viaje";
+const CLAVE_HISTORIAL_ACTIVO = "miconvoy_historial_activo";
+const CLAVE_ULTIMO_CORREO = "miconvoy_ultimo_correo";
 const MAXIMO_HISTORIAL = 10;
 
 export async function obtenerHistorial(
@@ -57,4 +59,34 @@ export async function guardarUltimoViaje(
   viaje: UltimoViajeLocal,
 ): Promise<void> {
   await almacenamiento.guardar(CLAVE_ULTIMO_VIAJE, viaje);
+}
+
+export async function eliminarUltimoViaje(almacenamiento: Almacenamiento): Promise<void> {
+  await almacenamiento.limpiar(CLAVE_ULTIMO_VIAJE);
+}
+
+// El historial se puede desactivar desde el perfil: si está apagado, la
+// calculadora no guarda nada al finalizar el viaje.
+export async function obtenerHistorialActivo(almacenamiento: Almacenamiento): Promise<boolean> {
+  return (await almacenamiento.obtener<boolean>(CLAVE_HISTORIAL_ACTIVO)) ?? true;
+}
+
+export async function guardarHistorialActivo(
+  almacenamiento: Almacenamiento,
+  activo: boolean,
+): Promise<void> {
+  await almacenamiento.guardar(CLAVE_HISTORIAL_ACTIVO, activo);
+}
+
+// Último correo usado, para recordarlo al volver a iniciar sesión tras olvidar
+// el perfil en el dispositivo.
+export async function obtenerUltimoCorreo(almacenamiento: Almacenamiento): Promise<string | null> {
+  return almacenamiento.obtener<string>(CLAVE_ULTIMO_CORREO);
+}
+
+export async function guardarUltimoCorreo(
+  almacenamiento: Almacenamiento,
+  correo: string,
+): Promise<void> {
+  await almacenamiento.guardar(CLAVE_ULTIMO_CORREO, correo);
 }

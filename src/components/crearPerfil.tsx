@@ -13,6 +13,7 @@ export interface DatosPerfilNuevo {
 
 interface PropiedadesCrearPerfil {
   alCrear: (datos: DatosPerfilNuevo) => void;
+  correoInicial?: string;
 }
 
 function decodificarJwt(credencial: string): { email?: string; name?: string; picture?: string } {
@@ -74,9 +75,9 @@ function BotonesGoogle({
   );
 }
 
-export function CrearPerfil({ alCrear }: PropiedadesCrearPerfil) {
+export function CrearPerfil({ alCrear, correoInicial = "" }: PropiedadesCrearPerfil) {
   const idClienteGoogle = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
-  const [correo, setCorreo] = useState("");
+  const [correo, setCorreo] = useState(correoInicial);
   const [nombre, setNombre] = useState("");
   const [error, setError] = useState<string | null>(null);
 

@@ -2,11 +2,20 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faPen, faPlus, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faCar, faClockRotateLeft, faCircleUser } from "@fortawesome/free-solid-svg-icons";
 import { adaptadorAlmacenamientoLocal } from "@/storage/almacenamiento";
-import { eliminarPerfil, guardarPerfil, obtenerPerfil } from "@/storage/datosLocales";
-import type { CocheLocal, PerfilLocal } from "@/storage/tiposModoGratis";
-import { SERVIDOR_ACTIVADO } from "@/configuracion";
+import {
+  eliminarPerfil,
+  guardarHistorialActivo,
+  guardarPerfil,
+  guardarUltimoCorreo,
+  limpiarHistorial,
+  obtenerHistorial,
+  obtenerHistorialActivo,
+  obtenerPerfil,
+  obtenerUltimoCorreo,
+} from "@/storage/datosLocales";
+import type { CocheLocal, EntradaHistorial, PerfilLocal } from "@/storage/tiposModoGratis";
 import { VentanaEmergente } from "@/components/ventanaEmergente";
 import {
   FormularioCoche,
@@ -14,24 +23,48 @@ import {
   type DatosFormularioCoche,
 } from "@/components/formularioCoche";
 import { CrearPerfil, type DatosPerfilNuevo } from "@/components/crearPerfil";
+import { MisCoches } from "@/components/perfil/misCoches";
+import { HistorialPerfil } from "@/components/perfil/historialPerfil";
+import { CuentaPerfil } from "@/components/perfil/cuentaPerfil";
+
+type ApartadoPerfil = "coches" | "historial" | "cuenta";
+
+const APARTADOS: { id: ApartadoPerfil; etiqueta: string; icono: typeof faCar }[] = [
+  { id: "coches", etiqueta: "Coches", icono: faCar },
+  { id: "historial", etiqueta: "Historial", icono: faClockRotateLeft },
+  { id: "cuenta", etiqueta: "Cuenta", icono: faCircleUser },
+];
 
 export default function PaginaPerfil() {
   const [cargando, setCargando] = useState(true);
   const [perfil, setPerfil] = useState<PerfilLocal | null>(null);
+  const [apartado, setApartado] = useState<ApartadoPerfil>("coches");
   const [ventanaAbierta, setVentanaAbierta] = useState(false);
   const [cocheEnEdicion, setCocheEnEdicion] = useState<CocheLocal | null>(null);
   const [mensajeServidor, setMensajeServidor] = useState<string | null>(null);
+  const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
+  const [historialActivo, setHistorialActivo] = useState(true);
+  const [ultimoCorreo, setUltimoCorreo] = useState("");
+  const [fotoRota, setFotoRota] = useState(false);
 
   useEffect(() => {
-    obtenerPerfil(adaptadorAlmacenamientoLocal)
-      .then((guardado) => {
-        if (guardado && guardado.tieneCoche === undefined) {
-          setPerfil({ ...guardado, tieneCoche: true });
-        } else {
-          setPerfil(guardado);
-        }
-      })
-      .finally(() => setCargando(false));
+    (async () => {
+      const [guardado, historialGuardado, activo, correo] = await Promise.all([
+        obtenerPerfil(adaptadorAlmacenamientoLocal),
+        obtenerHistorial(adaptadorAlmacenamientoLocal),
+        obtenerHistorialActivo(adaptadorAlmacenamientoLocal),
+        obtenerUltimoCorreo(adaptadorAlmacenamientoLocal),
+      ]);
+      if (guardado && guardado.tieneCoche === undefined) {
+        setPerfil({ ...guardado, tieneCoche: true });
+      } else {
+        setPerfil(guardado);
+      }
+      setHistorial(historialGuardado);
+      setHistorialActivo(activo);
+      setUltimoCorreo(correo ?? "");
+      setCargando(false);
+    })();
   }, []);
 
   const persistir = useCallback(async (actualizado: PerfilLocal) => {
@@ -49,6 +82,8 @@ export default function PaginaPerfil() {
         coches: [],
       };
       await persistir(nuevo);
+      await guardarUltimoCorreo(adaptadorAlmacenamientoLocal, datos.correo);
+      setUltimoCorreo(datos.correo);
     },
     [persistir],
   );
@@ -98,10 +133,22 @@ export default function PaginaPerfil() {
     [perfil, persistir],
   );
 
-  const alBorrarPerfil = useCallback(async () => {
-    if (!window.confirm("¿Borrar tu perfil de este dispositivo? El historial se conserva.")) return;
+  const alOlvidarDispositivo = useCallback(async () => {
+    if (!window.confirm("¿Olvidar este dispositivo? Se borrará tu perfil, pero no el historial."))
+      return;
     await eliminarPerfil(adaptadorAlmacenamientoLocal);
     setPerfil(null);
+  }, []);
+
+  const alCambiarHistorialActivo = useCallback(async (valor: boolean) => {
+    await guardarHistorialActivo(adaptadorAlmacenamientoLocal, valor);
+    setHistorialActivo(valor);
+  }, []);
+
+  const alVaciarHistorial = useCallback(async () => {
+    if (!window.confirm("¿Vaciar todo el historial de este dispositivo?")) return;
+    await limpiarHistorial(adaptadorAlmacenamientoLocal);
+    setHistorial([]);
   }, []);
 
   const alPulsarServidor = useCallback(() => {
@@ -112,7 +159,7 @@ export default function PaginaPerfil() {
   if (!perfil) {
     return (
       <section className="paginaPerfil">
-        <CrearPerfil alCrear={alCrearPerfil} />
+        <CrearPerfil alCrear={alCrearPerfil} correoInicial={ultimoCorreo} />
         <p className="textoSuave paginaPerfil__nota">
           Tus datos se guardan solo en este dispositivo. Si borras la caché o los datos de
           navegación, se perderán.
@@ -121,127 +168,73 @@ export default function PaginaPerfil() {
     );
   }
 
-  const tieneCoche = perfil.tieneCoche ?? true;
-
   return (
     <section className="paginaPerfil">
       <header className="paginaPerfil__cabecera">
-        {perfil.foto ? (
+        {perfil.foto && !fotoRota ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={perfil.foto} alt="" className="paginaPerfil__foto" />
-        ) : null}
+          <img
+            src={perfil.foto}
+            alt=""
+            className="paginaPerfil__foto"
+            referrerPolicy="no-referrer"
+            onError={() => setFotoRota(true)}
+          />
+        ) : (
+          <span className="paginaPerfil__fotoInicial" aria-hidden="true">
+            {(perfil.nombre.trim()[0] ?? "?").toUpperCase()}
+          </span>
+        )}
         <div>
           <h2 className="paginaPerfil__nombre">{perfil.nombre}</h2>
           <p className="textoSuave">{perfil.correo}</p>
         </div>
       </header>
 
-      <label className="paginaPerfil__interruptor">
-        <input
-          type="checkbox"
-          checked={tieneCoche}
-          onChange={(e) => alCambiarTieneCoche(e.target.checked)}
+      <nav className="paginaPerfil__nav" aria-label="Apartados del perfil">
+        {APARTADOS.map((item) => (
+          <button
+            key={item.id}
+            type="button"
+            className={
+              apartado === item.id
+                ? "paginaPerfil__navBoton paginaPerfil__navBoton--activo"
+                : "paginaPerfil__navBoton"
+            }
+            onClick={() => setApartado(item.id)}
+            aria-current={apartado === item.id ? "page" : undefined}
+          >
+            <FontAwesomeIcon icon={item.icono} />
+            <span>{item.etiqueta}</span>
+          </button>
+        ))}
+      </nav>
+
+      {apartado === "coches" && (
+        <MisCoches
+          perfil={perfil}
+          alAbrirAlta={abrirAlta}
+          alAbrirEdicion={abrirEdicion}
+          alEliminarCoche={alEliminarCoche}
+          alCambiarTieneCoche={alCambiarTieneCoche}
         />
-        <span>Tengo coche</span>
-      </label>
-
-      {tieneCoche ? (
-        <>
-          <div className="paginaPerfil__cochesCabecera">
-            <h3 className="paginaPerfil__subtitulo">Mis coches ({perfil.coches.length})</h3>
-            <button
-              type="button"
-              className="paginaPerfil__botonAnadir"
-              onClick={abrirAlta}
-              aria-label="Añadir coche"
-            >
-              <FontAwesomeIcon icon={faPlus} />
-            </button>
-          </div>
-
-          {perfil.coches.length === 0 ? (
-            <p className="textoSuave">
-              Todavía no tienes coches. Pulsa el botón de añadir para dar de alta el primero.
-            </p>
-          ) : (
-            <div className="paginaPerfil__coches">
-              {perfil.coches.map((coche) => (
-                <article key={coche.id} className="paginaPerfil__tarjetaCoche">
-                  <h4 className="paginaPerfil__cocheTitulo">
-                    {coche.marca} {coche.modelo}
-                  </h4>
-                  <p className="textoSuave">{coche.matricula}</p>
-                  <p>Consumo: {coche.consumo} L/100km</p>
-                  <div className="paginaPerfil__accionesCoche">
-                    <button
-                      type="button"
-                      className="paginaPerfil__botonSecundario"
-                      onClick={() => abrirEdicion(coche)}
-                      aria-label={`Editar ${coche.marca} ${coche.modelo}`}
-                    >
-                      <FontAwesomeIcon icon={faPen} /> Editar
-                    </button>
-                    <button
-                      type="button"
-                      className="paginaPerfil__botonEliminar"
-                      onClick={() => alEliminarCoche(coche.id)}
-                    >
-                      <FontAwesomeIcon icon={faTrash} /> Eliminar
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          )}
-        </>
-      ) : (
-        <p className="textoSuave">
-          Has indicado que no tienes coche: en la calculadora podrás introducir el consumo a mano en
-          cada viaje.
-        </p>
       )}
-
-      <div className="paginaPerfil__zonaServidor">
-        <h3 className="paginaPerfil__subtitulo">Sincronización</h3>
-        {SERVIDOR_ACTIVADO ? (
-          <>
-            <p className="aviso">
-              Crea una contraseña para proteger tu historial si otra persona entra con tu mismo
-              correo en otro dispositivo.
-            </p>
-            <div className="paginaPerfil__accionesCoche">
-              <button
-                type="button"
-                className="formulario__botonSecundario"
-                onClick={alPulsarServidor}
-              >
-                Crear contraseña
-              </button>
-              <button
-                type="button"
-                className="formulario__botonPrincipal"
-                onClick={alPulsarServidor}
-              >
-                Subir perfil e historial
-              </button>
-            </div>
-            {mensajeServidor ? <p className="textoSuave">{mensajeServidor}</p> : null}
-          </>
-        ) : (
-          <p className="textoSuave">
-            Servidor no activo: aquí aparecerá la sincronización cuando se despliegue el backend.
-          </p>
-        )}
-      </div>
-
-      <div className="paginaPerfil__zonaPeligro">
-        <button type="button" className="paginaPerfil__botonEliminar" onClick={alBorrarPerfil}>
-          Borrar mi perfil de este dispositivo
-        </button>
-        <p className="textoSuave paginaPerfil__nota">
-          Si borras la caché o los datos de navegación, el perfil y el historial se perderán.
-        </p>
-      </div>
+      {apartado === "historial" && (
+        <HistorialPerfil
+          historial={historial}
+          activo={historialActivo}
+          alCambiarActivo={alCambiarHistorialActivo}
+          alVaciar={alVaciarHistorial}
+        />
+      )}
+      {apartado === "cuenta" && (
+        <CuentaPerfil
+          ultimoCorreo={ultimoCorreo}
+          mensajeServidor={mensajeServidor}
+          alPulsarServidor={alPulsarServidor}
+          alOlvidar={alOlvidarDispositivo}
+        />
+      )}
 
       <VentanaEmergente
         abierto={ventanaAbierta}
@@ -260,6 +253,8 @@ export default function PaginaPerfil() {
                   modelo: cocheEnEdicion.modelo,
                   matricula: cocheEnEdicion.matricula,
                   consumo: cocheEnEdicion.consumo,
+                  precioPorLitro: cocheEnEdicion.precioPorLitro ?? 0,
+                  tipoCombustible: cocheEnEdicion.tipoCombustible ?? "gasolina",
                 }
               : undefined
           }
