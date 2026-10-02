@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import dynamic from "next/dynamic";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
@@ -33,6 +34,13 @@ import type {
 import { formatearEuros } from "@/formato";
 import { calcularConvoy, type ResultadoCalculo } from "@/calculadora";
 import { interpretarNumero } from "@/components/formularioCoche";
+import { CampoDireccion } from "@/components/campoDireccion";
+import { calcularRutaORS, leerClaveORS, type PuntoRuta } from "@/mapas/openRouteService";
+
+const MapaViaje = dynamic(
+  () => import("@/components/mapaViaje").then((modulo) => modulo.MapaViaje),
+  { ssr: false, loading: () => <p className="textoSuave">Cargando mapa…</p> },
+);
 
 interface CocheForm {
   clave: string;
@@ -88,6 +96,11 @@ export default function PaginaCalculadora() {
 
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
+  const [origenPunto, setOrigenPunto] = useState<PuntoRuta | null>(null);
+  const [destinoPunto, setDestinoPunto] = useState<PuntoRuta | null>(null);
+  const [lineaRuta, setLineaRuta] = useState<[number, number][]>([]);
+  const [calculandoRuta, setCalculandoRuta] = useState(false);
+  const [infoRuta, setInfoRuta] = useState<string | null>(null);
   const [distanciaTexto, setDistanciaTexto] = useState("");
   const [idaYVuelta, setIdaYVuelta] = useState(true);
   const [localizando, setLocalizando] = useState(false);
@@ -190,9 +203,15 @@ export default function PaginaCalculadora() {
     setLocalizando(true);
     navigator.geolocation.getCurrentPosition(
       (posicion) => {
-        setOrigen(
-          `Mi posición (${posicion.coords.latitude.toFixed(5)}, ${posicion.coords.longitude.toFixed(5)})`,
-        );
+        const etiqueta = `Mi posición (${posicion.coords.latitude.toFixed(5)}, ${posicion.coords.longitude.toFixed(5)})`;
+        setOrigen(etiqueta);
+        setOrigenPunto({
+          latitud: posicion.coords.latitude,
+          longitud: posicion.coords.longitude,
+          etiqueta,
+        });
+        setLineaRuta([]);
+        setInfoRuta(null);
         setLocalizando(false);
         tocar();
       },
@@ -202,6 +221,59 @@ export default function PaginaCalculadora() {
       },
       { timeout: 10000 },
     );
+  };
+
+  const alCambiarOrigen = (texto: string) => {
+    setOrigen(texto);
+    setOrigenPunto(null);
+    setLineaRuta([]);
+    setInfoRuta(null);
+    tocar();
+  };
+
+  const alCambiarDestino = (texto: string) => {
+    setDestino(texto);
+    setDestinoPunto(null);
+    setLineaRuta([]);
+    setInfoRuta(null);
+    tocar();
+  };
+
+  const alElegirOrigen = (punto: PuntoRuta) => {
+    setOrigen(punto.etiqueta);
+    setOrigenPunto(punto);
+    setLineaRuta([]);
+    setInfoRuta(null);
+    tocar();
+  };
+
+  const alElegirDestino = (punto: PuntoRuta) => {
+    setDestino(punto.etiqueta);
+    setDestinoPunto(punto);
+    setLineaRuta([]);
+    setInfoRuta(null);
+    tocar();
+  };
+
+  const alCalcularDistancia = async () => {
+    if (!origenPunto || !destinoPunto) {
+      setError("Elige origen y destino de las sugerencias para calcular los km.");
+      return;
+    }
+    setCalculandoRuta(true);
+    setError(null);
+    try {
+      const ruta = await calcularRutaORS(origenPunto, destinoPunto);
+      setDistanciaTexto(String(Number(ruta.distanciaKm.toFixed(1))).replace(".", ","));
+      setLineaRuta(ruta.linea);
+      setInfoRuta(
+        `Ruta: ${ruta.distanciaKm.toFixed(1).replace(".", ",")} km · unos ${ruta.duracionMin} min`,
+      );
+      tocar();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "No se pudo calcular la distancia.");
+    }
+    setCalculandoRuta(false);
   };
 
   const nuevoCocheVacio = (conductor = ""): CocheForm => {
@@ -535,18 +607,13 @@ export default function PaginaCalculadora() {
 
       {paso === 0 && (
         <div className="formulario">
-          <label className="formulario__campo">
-            <span className="formulario__etiqueta">Origen</span>
-            <div className="calculadora__conBoton">
-              <input
-                className="formulario__entrada"
-                value={origen}
-                onChange={(e) => {
-                  setOrigen(e.target.value);
-                  tocar();
-                }}
-                placeholder="¿Desde dónde salís?"
-              />
+          <CampoDireccion
+            etiqueta="Origen"
+            valor={origen}
+            placeholder="¿Desde dónde salís?"
+            alCambiar={alCambiarOrigen}
+            alElegir={alElegirOrigen}
+            botonExtra={
               <button
                 type="button"
                 className="formulario__botonSecundario"
@@ -556,20 +623,29 @@ export default function PaginaCalculadora() {
               >
                 <FontAwesomeIcon icon={faLocationDot} />
               </button>
-            </div>
-          </label>
-          <label className="formulario__campo">
-            <span className="formulario__etiqueta">Destino</span>
-            <input
-              className="formulario__entrada"
-              value={destino}
-              onChange={(e) => {
-                setDestino(e.target.value);
-                tocar();
-              }}
-              placeholder="¿A dónde vais?"
-            />
-          </label>
+            }
+          />
+          <CampoDireccion
+            etiqueta="Destino"
+            valor={destino}
+            placeholder="¿A dónde vais?"
+            alCambiar={alCambiarDestino}
+            alElegir={alElegirDestino}
+          />
+          <MapaViaje origen={origenPunto} destino={destinoPunto} linea={lineaRuta} />
+          {leerClaveORS() ? (
+            <>
+              <button
+                type="button"
+                className="formulario__botonSecundario"
+                onClick={alCalcularDistancia}
+                disabled={calculandoRuta || !origenPunto || !destinoPunto}
+              >
+                {calculandoRuta ? "Calculando…" : "Calcular distancia automáticamente"}
+              </button>
+              {infoRuta ? <p className="textoSuave">{infoRuta}</p> : null}
+            </>
+          ) : null}
           <label className="formulario__campo">
             <span className="formulario__etiqueta">Distancia (km)</span>
             <input
@@ -584,8 +660,7 @@ export default function PaginaCalculadora() {
             />
           </label>
           <p className="textoSuave">
-            De momento la distancia se escribe a mano. El cálculo automático con OpenRouteService
-            está pendiente.
+            Elige origen y destino de las sugerencias para calcular los km, o escríbelos a mano.
           </p>
           <label className="calculadora__interruptor">
             <input
@@ -622,7 +697,7 @@ export default function PaginaCalculadora() {
               <div className="calculadora__pasoCoches">
                 <button
                   type="button"
-                  className="formulario__botonSecundario"
+                  className="calculadora__pasoCochesBoton calculadora__pasoCochesBoton--menos"
                   onClick={() => alCambiarNumeroCoches(coches.length - 1)}
                   disabled={coches.length <= 1}
                   aria-label="Quitar un coche"
@@ -634,7 +709,7 @@ export default function PaginaCalculadora() {
                 </output>
                 <button
                   type="button"
-                  className="formulario__botonSecundario"
+                  className="calculadora__pasoCochesBoton calculadora__pasoCochesBoton--mas"
                   onClick={() => alCambiarNumeroCoches(coches.length + 1)}
                   disabled={coches.length >= MAXIMO_COCHES}
                   aria-label="Añadir un coche"

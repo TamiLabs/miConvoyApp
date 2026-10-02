@@ -122,14 +122,26 @@
   font-weight: 700;
 }
 
-.calculadora__pasoCoches .formulario__botonSecundario {
+.calculadora__pasoCochesBoton {
   flex: 1;
   min-height: 2.75rem;
+  background-color: transparent;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  cursor: pointer;
 }
 
-.calculadora__pasoCoches .formulario__botonSecundario:disabled {
+.calculadora__pasoCochesBoton:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+.calculadora__pasoCochesBoton--menos {
+  // Estilos propios del botón −.
+}
+
+.calculadora__pasoCochesBoton--mas {
+  // Estilos propios del botón +.
 }
 
 .calculadora__navegacion .formulario__botonPrincipal,
@@ -197,6 +209,8 @@
   color: $colorSecundario;
   font-size: 0.85rem;
   cursor: pointer;
+  width: fit-content;
+  margin: 0 auto;
 
   &:hover {
     text-decoration: underline;

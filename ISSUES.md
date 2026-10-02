@@ -57,12 +57,11 @@ Estado: `src/app/calculadora/page.tsx`.
 
 ### 2.2 Paso origen (geolocalización actual) + destino — ✅ Hecho (base)
 
-Campos origen/destino más botón "usar mi posición" (`navigator.geolocation`, rellena `Mi posición (lat, lng)` con gestión de errores). Sin geocodificación inversa de momento.
+Campos origen/destino con autocompletado (ORS Geocode), botón "usar mi posición" (`navigator.geolocation`, crea punto exacto) y mini-mapa Leaflet/OSM con ambos puntos y la ruta.
 
-### 2.3 Cálculo de distancia con OpenRouteService — ⬜ Pendiente
+### 2.3 Cálculo de distancia con OpenRouteService — ✅ Hecho
 
-Llamar a la API externa para obtener los km del trayecto.
-Criterios: necesita internet (no es 100% offline); clave en variable de entorno; gestión de errores y cuota.
+Botón "Calcular distancia automáticamente" (requiere elegir ambas sugerencias): `driving-car/geojson` rellena los km, muestra duración y dibuja la ruta en el mapa. Clave en `NEXT_PUBLIC_ORS_API_KEY`; sin puntos exactos o sin key, se sigue en manual.
 
 ### 2.4 Campo manual de km alternativo — ✅ Hecho
 
