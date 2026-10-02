@@ -10,24 +10,27 @@ import {
   faLocationDot,
   faMinus,
   faPlus,
+  faRotateRight,
   faShareNodes,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { adaptadorAlmacenamientoLocal } from "@/storage/almacenamiento";
 import {
   anadirEntradaHistorial,
+  eliminarUltimoViaje,
   guardarUltimoViaje,
-  limpiarHistorial,
-  obtenerHistorial,
+  obtenerHistorialActivo,
   obtenerPerfil,
   obtenerUltimoViaje,
 } from "@/storage/datosLocales";
+import { ETIQUETAS_COMBUSTIBLE } from "@/storage/tiposModoGratis";
 import type {
   CocheDelViajeLocal,
   EntradaHistorial,
   GastoAdicionalLocal,
   PerfilLocal,
 } from "@/storage/tiposModoGratis";
+import { formatearEuros } from "@/formato";
 import { calcularConvoy, type ResultadoCalculo } from "@/calculadora";
 import { interpretarNumero } from "@/components/formularioCoche";
 
@@ -36,6 +39,7 @@ interface CocheForm {
   nombreConductor: string;
   idCoche: string;
   consumoTexto: string;
+  precioTexto: string;
   pasajerosTexto: string;
   incluirConductor: boolean;
 }
@@ -55,16 +59,13 @@ function generarClave(): string {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-function formatearEuros(valor: number): string {
-  return `${valor.toFixed(2).replace(".", ",")} €`;
-}
-
 function crearCocheVacio(conductor = ""): CocheForm {
   return {
     clave: generarClave(),
     nombreConductor: conductor,
     idCoche: "",
     consumoTexto: "",
+    precioTexto: "",
     pasajerosTexto: "1",
     incluirConductor: true,
   };
@@ -88,7 +89,6 @@ export default function PaginaCalculadora() {
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
   const [distanciaTexto, setDistanciaTexto] = useState("");
-  const [precioTexto, setPrecioTexto] = useState("");
   const [idaYVuelta, setIdaYVuelta] = useState(true);
   const [localizando, setLocalizando] = useState(false);
 
@@ -98,40 +98,41 @@ export default function PaginaCalculadora() {
 
   const [resultado, setResultado] = useState<ResultadoCalculo[] | null>(null);
   const [desactualizado, setDesactualizado] = useState(false);
-  const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
+  const [guardado, setGuardado] = useState(false);
+  const [sinRedondeo, setSinRedondeo] = useState(false);
+  const [historialActivo, setHistorialActivo] = useState(true);
   const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [perfilGuardado, ultimoViaje, historialGuardado] = await Promise.all([
+      const [perfilGuardado, ultimoViaje, activo] = await Promise.all([
         obtenerPerfil(adaptadorAlmacenamientoLocal),
         obtenerUltimoViaje(adaptadorAlmacenamientoLocal),
-        obtenerHistorial(adaptadorAlmacenamientoLocal),
+        obtenerHistorialActivo(adaptadorAlmacenamientoLocal),
       ]);
       setPerfil(perfilGuardado);
-      setHistorial(historialGuardado);
+      setHistorialActivo(activo);
       if (ultimoViaje) {
         setOrigen(ultimoViaje.origen);
         setDestino(ultimoViaje.destino);
         setDistanciaTexto(
           ultimoViaje.distanciaKm === null ? "" : String(ultimoViaje.distanciaKm).replace(".", ","),
         );
-        setPrecioTexto(
-          ultimoViaje.precioPorLitro === null
-            ? ""
-            : String(ultimoViaje.precioPorLitro).replace(".", ","),
-        );
         setIdaYVuelta(ultimoViaje.idaYVuelta);
         setEsConvoy(ultimoViaje.esConvoy);
         setCoches(
-          ultimoViaje.coches.map((coche) => ({
-            clave: generarClave(),
-            nombreConductor: coche.nombreConductor,
-            idCoche: coche.idCoche ?? "",
-            consumoTexto: String(coche.consumo).replace(".", ","),
-            pasajerosTexto: String(coche.numeroPasajeros + 1),
-            incluirConductor: coche.incluirConductorEnReparto,
-          })),
+          ultimoViaje.coches.map((coche) => {
+            const precioGuardado = coche.precioPorLitro ?? ultimoViaje.precioPorLitro ?? 0;
+            return {
+              clave: generarClave(),
+              nombreConductor: coche.nombreConductor,
+              idCoche: coche.idCoche ?? "",
+              consumoTexto: String(coche.consumo).replace(".", ","),
+              precioTexto: precioGuardado > 0 ? String(precioGuardado).replace(".", ",") : "",
+              pasajerosTexto: String(coche.numeroPasajeros + 1),
+              incluirConductor: coche.incluirConductorEnReparto,
+            };
+          }),
         );
         setGastos(
           ultimoViaje.gastosAdicionales.map((gasto) => ({
@@ -147,6 +148,10 @@ export default function PaginaCalculadora() {
             ...crearCocheVacio(perfilGuardado.nombre),
             idCoche: primero?.id ?? "",
             consumoTexto: primero ? String(primero.consumo).replace(".", ",") : "",
+            precioTexto:
+              primero && primero.precioPorLitro > 0
+                ? String(primero.precioPorLitro).replace(".", ",")
+                : "",
           },
         ]);
       }
@@ -159,6 +164,23 @@ export default function PaginaCalculadora() {
     setError(null);
     setCopiado(false);
   };
+
+  // Precio del coche: interno desde el perfil al elegir coche, o manual.
+  const precioDeCoche = (coche: CocheForm): number | null => {
+    const elegido = perfil?.coches.find((c) => c.id === coche.idCoche);
+    if (elegido) return elegido.precioPorLitro > 0 ? elegido.precioPorLitro : null;
+    return interpretarNumero(coche.precioTexto);
+  };
+
+  // El campo pide ocupantes totales (pasajeros + conductor). Con la casilla
+  // marcada, el conductor paga su parte y se divide entre N; sin marcar, se
+  // le invita y pagan solo los N-1 pasajeros no conductores.
+  const aReparto = (
+    coche: CocheForm,
+  ): { numeroPasajeros: number; incluirConductorEnReparto: boolean } => ({
+    numeroPasajeros: Number.parseInt(coche.pasajerosTexto, 10) - 1,
+    incluirConductorEnReparto: coche.incluirConductor,
+  });
 
   const alUsarPosicion = () => {
     if (!("geolocation" in navigator)) {
@@ -188,6 +210,10 @@ export default function PaginaCalculadora() {
       ...crearCocheVacio(conductor),
       idCoche: primero?.id ?? "",
       consumoTexto: primero ? String(primero.consumo).replace(".", ",") : "",
+      precioTexto:
+        primero && primero.precioPorLitro > 0
+          ? String(primero.precioPorLitro).replace(".", ",")
+          : "",
     };
   };
 
@@ -197,11 +223,15 @@ export default function PaginaCalculadora() {
         if (coche.clave !== clave) return coche;
         if (valor === "manual") return { ...coche, idCoche: "" };
         const elegido = perfil?.coches.find((c) => c.id === valor);
-        // El consumo queda interno: el usuario solo ve el nombre del coche.
+        // Consumo y precio quedan internos: el usuario solo ve el coche.
         return {
           ...coche,
           idCoche: valor,
           consumoTexto: elegido ? String(elegido.consumo).replace(".", ",") : coche.consumoTexto,
+          precioTexto:
+            elegido && elegido.precioPorLitro > 0
+              ? String(elegido.precioPorLitro).replace(".", ",")
+              : coche.precioTexto,
         };
       }),
     );
@@ -230,8 +260,6 @@ export default function PaginaCalculadora() {
   const validarViaje = (): string | null => {
     if (interpretarNumero(distanciaTexto) === null || (interpretarNumero(distanciaTexto) ?? 0) <= 0)
       return "Escribe la distancia en km (vale con , o .).";
-    if (interpretarNumero(precioTexto) === null || (interpretarNumero(precioTexto) ?? 0) <= 0)
-      return "Escribe el precio del combustible en €/L.";
     return null;
   };
 
@@ -245,6 +273,11 @@ export default function PaginaCalculadora() {
         return estaEnPerfil(perfil, coche.idCoche)
           ? `${etiqueta}El coche elegido no tiene un consumo válido. Revísalo en tu perfil.`
           : `${etiqueta}Revisa el consumo (L/100km).`;
+      const precio = precioDeCoche(coche);
+      if (precio === null || precio <= 0)
+        return estaEnPerfil(perfil, coche.idCoche)
+          ? `${etiqueta}El coche elegido no tiene precio: edítalo en tu perfil.`
+          : `${etiqueta}Revisa el precio del combustible (€/L).`;
       const ocupantes = Number.parseInt(coche.pasajerosTexto, 10);
       if (!Number.isInteger(ocupantes) || ocupantes < 1)
         return `${etiqueta}Escribe cuántas personas van en el coche (mínimo 1).`;
@@ -282,25 +315,14 @@ export default function PaginaCalculadora() {
       return;
     }
     const distanciaKm = interpretarNumero(distanciaTexto) ?? 0;
-    const precioPorLitro = interpretarNumero(precioTexto) ?? 0;
     const gastosLimpios: GastoAdicionalLocal[] = gastos
       .filter((g) => g.nombre.trim() || g.importeTexto.trim())
       .map((g) => ({ nombre: g.nombre.trim(), importe: interpretarNumero(g.importeTexto) ?? 0 }));
 
-    // El campo pide ocupantes totales (pasajeros + conductor). Con la casilla
-    // marcada, el conductor paga su parte y se divide entre N; sin marcar, se
-    // le invita y pagan solo los N-1 pasajeros no conductores.
-    const aReparto = (
-      coche: CocheForm,
-    ): { numeroPasajeros: number; incluirConductorEnReparto: boolean } => ({
-      numeroPasajeros: Number.parseInt(coche.pasajerosTexto, 10) - 1,
-      incluirConductorEnReparto: coche.incluirConductor,
-    });
-
     const entradasCalculo = coches.map((coche) => ({
       consumo: interpretarNumero(coche.consumoTexto) ?? 0,
       distanciaKm,
-      precioPorLitro,
+      precioPorLitro: precioDeCoche(coche) ?? 0,
       idaYVuelta,
       gastosAdicionales: gastosLimpios.map((g) => ({ ...g, importe: g.importe / coches.length })),
       ...aReparto(coche),
@@ -310,46 +332,60 @@ export default function PaginaCalculadora() {
       [
         "[MiConvoy] Cálculo del viaje:",
         `Ruta: ${origen.trim() || "—"} → ${destino.trim() || "—"}`,
-        `Distancia: ${distanciaKm} km${idaYVuelta ? " x2 (ida y vuelta)" : ""} · Precio: ${precioPorLitro} €/L`,
+        `Distancia: ${distanciaKm} km${idaYVuelta ? " x2 (ida y vuelta)" : ""}`,
         ...resultados.map((r, i) => {
           const coche = coches[i];
           const entrada = entradasCalculo[i];
           const ocupantes = Number.parseInt(coche.pasajerosTexto, 10);
           const pagan = entrada.incluirConductorEnReparto ? ocupantes : ocupantes - 1;
           const detalle = entrada.incluirConductorEnReparto
-            ? `${ocupantes - 1} pasajeros + conductor (reparto entre ${ocupantes})`
-            : `${pagan} pasajeros pagan todo (conductor invitado)`;
+            ? `${ocupantes - 1} pasajeros + conductor`
+            : `${pagan} pasajeros (conductor invitado)`;
           const bruto = r.costeTotal / pagan;
           return [
             `Coche ${i + 1} (${coche.nombreConductor.trim() || "—"}):`,
-            `  consumo=${entrada.consumo} L/100km → combustible=${formatearEuros(r.costeCombustible)} + gastos=${formatearEuros(r.costeTotal - r.costeCombustible)} = total ${formatearEuros(r.costeTotal)}`,
-            `  reparto entre ${ocupantes} (${detalle}) → bruto ${formatearEuros(bruto)} → redondeo ${formatearEuros(r.costePorPersona)} por persona`,
+            `  consumo=${entrada.consumo} L/100km, precio=${entrada.precioPorLitro} €/L → combustible=${formatearEuros(r.costeCombustible)} + gastos=${formatearEuros(r.costeTotal - r.costeCombustible)} = total ${formatearEuros(r.costeTotal)}`,
+            `  reparto entre ${pagan} (${detalle}) → bruto ${formatearEuros(bruto)} → redondeo ${formatearEuros(r.costePorPersona)} por persona`,
           ].join("\n");
         }),
       ].join("\n"),
     );
     setResultado(resultados);
     setDesactualizado(false);
+    setGuardado(false);
     setError(null);
     setPaso(3);
 
+    const precios = coches.map((coche) => precioDeCoche(coche) ?? 0);
     await guardarUltimoViaje(adaptadorAlmacenamientoLocal, {
       origen: origen.trim(),
       destino: destino.trim(),
       distanciaKm,
-      precioPorLitro,
+      precioPorLitro: precios[0] ?? 0,
       idaYVuelta,
       esConvoy,
-      coches: coches.map((coche) => ({
+      coches: coches.map((coche, i) => ({
         nombreConductor: coche.nombreConductor.trim(),
         idCoche: coche.idCoche || undefined,
         consumo: interpretarNumero(coche.consumoTexto) ?? 0,
+        precioPorLitro: precios[i] ?? 0,
+        tipoCombustible: perfil?.coches.find((c) => c.id === coche.idCoche)?.tipoCombustible,
         ...aReparto(coche),
       })),
       gastosAdicionales: gastosLimpios,
     });
+  };
 
-    const total = resultados.reduce((suma, r) => suma + r.costeTotal, 0);
+  // El viaje solo entra al historial al pulsar "Finalizar viaje": hasta entonces
+  // se puede navegar libremente entre pasos para cambiar datos.
+  const alFinalizar = async () => {
+    if (!resultado || desactualizado || guardado) return;
+    const distanciaKm = interpretarNumero(distanciaTexto) ?? 0;
+    const gastosLimpios: GastoAdicionalLocal[] = gastos
+      .filter((g) => g.nombre.trim() || g.importeTexto.trim())
+      .map((g) => ({ nombre: g.nombre.trim(), importe: interpretarNumero(g.importeTexto) ?? 0 }));
+    const precios = coches.map((coche) => precioDeCoche(coche) ?? 0);
+    const total = resultado.reduce((suma, r) => suma + r.costeTotal, 0);
     const totalParticipantes = coches.reduce(
       (suma, c) => suma + Number.parseInt(c.pasajerosTexto, 10) - (c.incluirConductor ? 0 : 1),
       0,
@@ -363,39 +399,64 @@ export default function PaginaCalculadora() {
       origen: origen.trim() || undefined,
       destino: destino.trim() || undefined,
       distanciaKm,
-      precioCombustible: precioPorLitro,
-      coches: coches.map((coche): CocheDelViajeLocal => ({
+      precioCombustible: esConvoy
+        ? precios.reduce((suma, p) => suma + p, 0) / Math.max(precios.length, 1)
+        : (precios[0] ?? 0),
+      coches: coches.map((coche, i): CocheDelViajeLocal => ({
         nombreConductor: coche.nombreConductor.trim(),
         idCoche: coche.idCoche || undefined,
+        consumo: interpretarNumero(coche.consumoTexto) ?? 0,
+        precioPorLitro: precios[i] ?? 0,
         ...aReparto(coche),
       })),
       gastosAdicionales: gastosLimpios,
       resultado: { costeTotal: total, costePorPersona: media },
-      detallePorCoche: resultados.map((r) => ({
+      detallePorCoche: resultado.map((r) => ({
         costeTotal: r.costeTotal,
         costePorPersona: r.costePorPersona,
       })),
     };
     await anadirEntradaHistorial(adaptadorAlmacenamientoLocal, entrada);
-    setHistorial(await obtenerHistorial(adaptadorAlmacenamientoLocal));
+    setGuardado(true);
+  };
+
+  const pasajerosTotales = (): number =>
+    coches.reduce((suma, coche) => suma + (Number.parseInt(coche.pasajerosTexto, 10) || 0), 0);
+
+  // Km mostrados: en ida y vuelta, el doble de lo introducido (ida + vuelta).
+  const distanciaMostrada = (): string => {
+    const km = interpretarNumero(distanciaTexto) ?? 0;
+    return String(Number(((idaYVuelta ? km * 2 : km) || 0).toFixed(2))).replace(".", ",");
+  };
+
+  // Importe visible: redondeado por defecto; bruto exacto si se quitó el redondeo.
+  const importeCoche = (i: number, r: ResultadoCalculo): number => {
+    if (!sinRedondeo) return r.costePorPersona;
+    const ocupantes = Number.parseInt(coches[i]?.pasajerosTexto ?? "0", 10);
+    const pagan = (coches[i]?.incluirConductor ? ocupantes : ocupantes - 1) || 1;
+    return r.costeTotal / pagan;
   };
 
   const textoParaCompartir = (): string => {
     if (!resultado) return "";
+    // Mismo contenido que el ticket visible: ruta, fecha, ida/vuelta, km,
+    // personas y, por coche, conductor, coche, importe y "por persona".
+    const fecha = new Date().toLocaleDateString("es-ES");
+    const cabecera = `${fecha} · ${idaYVuelta ? "Ida y vuelta" : "Solo ida"} · ${distanciaMostrada()} km · ${pasajerosTotales()} persona${pasajerosTotales() === 1 ? "" : "s"}`;
     const ruta = [origen.trim(), destino.trim()].filter(Boolean).join(" → ") || "Viaje";
-    const lineas = [
-      `MiConvoy: ${ruta}`,
-      `${idaYVuelta ? "Ida y vuelta" : "Solo ida"} · ${distanciaTexto} km`,
-      ...resultado.map((r, i) => {
-        const coche = coches[i];
-        const ocupantes = Number.parseInt(coche.pasajerosTexto, 10);
-        const detalle = coche.incluirConductor
-          ? `${ocupantes - 1} pasajeros + conductor`
-          : `${ocupantes - 1} pasajeros (conductor invitado)`;
-        return `${esConvoy ? `Coche ${i + 1} (${coche.nombreConductor.trim()}): ` : ""}cada uno paga ${formatearEuros(r.costePorPersona)} (${detalle}, total ${formatearEuros(r.costeTotal)})`;
-      }),
-    ];
-    return lineas.join("\n");
+    const bloques = resultado.map((r, i) => {
+      const lineasBloque: string[] = [];
+      if (esConvoy) {
+        lineasBloque.push((coches[i]?.nombreConductor || `Coche ${i + 1}`).trim());
+      } else if (coches[0]) {
+        lineasBloque.push(`Conduce ${(coches[0].nombreConductor || "—").trim()}`);
+      }
+      const nombreCoche = nombreCocheElegido(perfil, coches[i]?.idCoche ?? "");
+      if (nombreCoche) lineasBloque.push(nombreCoche);
+      lineasBloque.push(formatearEuros(importeCoche(i, r)), "por persona");
+      return lineasBloque.join("\n");
+    });
+    return [ruta, cabecera, ...bloques, "MiConvoy"].join("\n");
   };
 
   const alCopiar = async () => {
@@ -428,10 +489,23 @@ export default function PaginaCalculadora() {
     }
   };
 
-  const alVaciarHistorial = async () => {
-    if (!window.confirm("¿Vaciar todo el historial de este dispositivo?")) return;
-    await limpiarHistorial(adaptadorAlmacenamientoLocal);
-    setHistorial([]);
+  // Vacía todo el formulario para empezar un viaje de cero.
+  const alReiniciar = async () => {
+    await eliminarUltimoViaje(adaptadorAlmacenamientoLocal);
+    setOrigen("");
+    setDestino("");
+    setDistanciaTexto("");
+    setIdaYVuelta(true);
+    setEsConvoy(false);
+    setCoches([crearCocheVacio()]);
+    setGastos([]);
+    setResultado(null);
+    setDesactualizado(false);
+    setGuardado(false);
+    setSinRedondeo(false);
+    setCopiado(false);
+    setError(null);
+    setPaso(0);
   };
 
   if (cargando) return <p className="paginaCalculadora textoSuave">Cargando calculadora…</p>;
@@ -513,19 +587,6 @@ export default function PaginaCalculadora() {
             De momento la distancia se escribe a mano. El cálculo automático con OpenRouteService
             está pendiente.
           </p>
-          <label className="formulario__campo">
-            <span className="formulario__etiqueta">Precio combustible (€/L)</span>
-            <input
-              className="formulario__entrada"
-              value={precioTexto}
-              onChange={(e) => {
-                setPrecioTexto(e.target.value);
-                tocar();
-              }}
-              placeholder="p. ej. 1,65"
-              inputMode="decimal"
-            />
-          </label>
           <label className="calculadora__interruptor">
             <input
               type="checkbox"
@@ -620,8 +681,26 @@ export default function PaginaCalculadora() {
                   </select>
                 </label>
               )}
-              <div className="calculadora__fila">
-                {!estaEnPerfil(perfil, coche.idCoche) && (
+              {!estaEnPerfil(perfil, coche.idCoche) && (
+                <div className="calculadora__fila">
+                  <label className="formulario__campo">
+                    <span className="formulario__etiqueta">Precio combustible (€/L)</span>
+                    <input
+                      className="formulario__entrada"
+                      value={coche.precioTexto}
+                      onChange={(e) => {
+                        const valor = e.target.value;
+                        setCoches((previos) =>
+                          previos.map((c) =>
+                            c.clave === coche.clave ? { ...c, precioTexto: valor } : c,
+                          ),
+                        );
+                        tocar();
+                      }}
+                      placeholder="p. ej. 1,65"
+                      inputMode="decimal"
+                    />
+                  </label>
                   <label className="formulario__campo">
                     <span className="formulario__etiqueta">Consumo (L/100km)</span>
                     <input
@@ -640,36 +719,33 @@ export default function PaginaCalculadora() {
                       inputMode="decimal"
                     />
                   </label>
+                </div>
+              )}
+              <label className="formulario__campo">
+                <span className="formulario__etiqueta">Nº ocupantes (incluido el conductor)</span>
+                <input
+                  className="formulario__entrada"
+                  value={coche.pasajerosTexto}
+                  onChange={(e) => {
+                    const valor = e.target.value;
+                    setCoches((previos) =>
+                      previos.map((c) =>
+                        c.clave === coche.clave ? { ...c, pasajerosTexto: valor } : c,
+                      ),
+                    );
+                    tocar();
+                  }}
+                  placeholder="4"
+                  inputMode="numeric"
+                />
+                {Number.parseInt(coche.pasajerosTexto, 10) >= 1 && (
+                  <span className="textoSuave">
+                    {coche.incluirConductor
+                      ? `Se divide entre ${coche.pasajerosTexto} (todos pagan)`
+                      : `Se divide entre ${Number.parseInt(coche.pasajerosTexto, 10) - 1} (el conductor va invitado)`}
+                  </span>
                 )}
-                <label
-                  className="formulario__campo"
-                  style={estaEnPerfil(perfil, coche.idCoche) ? { gridColumn: "1 / -1" } : undefined}
-                >
-                  <span className="formulario__etiqueta">Nº ocupantes (incluido el conductor)</span>
-                  <input
-                    className="formulario__entrada"
-                    value={coche.pasajerosTexto}
-                    onChange={(e) => {
-                      const valor = e.target.value;
-                      setCoches((previos) =>
-                        previos.map((c) =>
-                          c.clave === coche.clave ? { ...c, pasajerosTexto: valor } : c,
-                        ),
-                      );
-                      tocar();
-                    }}
-                    placeholder="4"
-                    inputMode="numeric"
-                  />
-                  {Number.parseInt(coche.pasajerosTexto, 10) >= 1 && (
-                    <span className="textoSuave">
-                      {coche.incluirConductor
-                        ? `Se divide entre ${coche.pasajerosTexto} (todos pagan)`
-                        : `Se divide entre ${Number.parseInt(coche.pasajerosTexto, 10) - 1} (el conductor va invitado)`}
-                    </span>
-                  )}
-                </label>
-              </div>
+              </label>
               <label className="calculadora__interruptor">
                 <input
                   type="checkbox"
@@ -774,7 +850,8 @@ export default function PaginaCalculadora() {
                 </p>
                 <p className="textoSuave">
                   {new Date().toLocaleDateString("es-ES")} ·{" "}
-                  {idaYVuelta ? "Ida y vuelta" : "Solo ida"} · {distanciaTexto} km
+                  {idaYVuelta ? "Ida y vuelta" : "Solo ida"} · {distanciaMostrada()} km ·{" "}
+                  {pasajerosTotales()} persona{pasajerosTotales() === 1 ? "" : "s"}
                 </p>
                 {resultado.map((r, i) => (
                   <div key={coches[i]?.clave ?? i} className="calculadora__reciboCoche">
@@ -794,18 +871,14 @@ export default function PaginaCalculadora() {
                       </p>
                     )}
                     <p className="calculadora__reciboImporte">
-                      {formatearEuros(r.costePorPersona)}
+                      {formatearEuros(importeCoche(i, r))}
                     </p>
                     <p className="textoSuave">por persona</p>
-                    {/* <p className="calculadora__reciboTotal textoSuave">
-                      {coches[i]?.incluirConductor
-                        ? `Reparto entre ${coches[i]?.pasajerosTexto}`
-                        : `Reparto entre ${Number.parseInt(coches[i]?.pasajerosTexto ?? "0", 10) - 1} (conductor invitado)`}
-                    </p> */}
                   </div>
                 ))}
                 <p className="calculadora__reciboLogo">MiConvoy</p>
               </article>
+
               <div className="calculadora__accionesResultado">
                 {desactualizado && (
                   <button type="button" className="formulario__botonPrincipal" onClick={alCalcular}>
@@ -819,6 +892,36 @@ export default function PaginaCalculadora() {
                   <FontAwesomeIcon icon={faShareNodes} /> Compartir
                 </button>
               </div>
+
+              <p
+                className="calculadora__toggleRedondeo"
+                onClick={() => setSinRedondeo((valor) => !valor)}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setSinRedondeo((valor) => !valor);
+                  }
+                }}
+              >
+                {sinRedondeo ? "Aplicar redondeo" : "Quitar redondeo"}
+              </p>
+
+              {!guardado && !desactualizado && historialActivo && (
+                <button type="button" className="formulario__botonPrincipal" onClick={alFinalizar}>
+                  Finalizar viaje
+                </button>
+              )}
+              {!guardado && !desactualizado && !historialActivo && (
+                <p className="textoSuave">
+                  Historial desactivado: este viaje no se guardará. Actívalo en tu perfil si lo
+                  quieres conservar.
+                </p>
+              )}
+              {guardado && !desactualizado && (
+                <p className="aviso">Viaje finalizado y guardado en tu historial.</p>
+              )}
             </>
           )}
         </div>
@@ -848,61 +951,11 @@ export default function PaginaCalculadora() {
           </button>
         )}
         {paso === 3 && resultado && (
-          <button
-            type="button"
-            className="formulario__botonSecundario"
-            onClick={() => {
-              setPaso(0);
-              setError(null);
-            }}
-          >
-            Editar datos
+          <button type="button" className="formulario__botonSecundario" onClick={alReiniciar}>
+            <FontAwesomeIcon icon={faRotateRight} /> Reiniciar
           </button>
         )}
       </nav>
-
-      <div className="calculadora__historial">
-        <div className="paginaPerfil__cochesCabecera">
-          <h3 className="paginaPerfil__subtitulo">Historial ({historial.length}/10)</h3>
-          {historial.length > 0 && (
-            <button
-              type="button"
-              className="paginaPerfil__botonEliminar"
-              onClick={alVaciarHistorial}
-            >
-              Vaciar
-            </button>
-          )}
-        </div>
-        {historial.length === 0 ? (
-          <p className="textoSuave">Aún no hay viajes calculados en este dispositivo.</p>
-        ) : (
-          <div className="calculadora__historialLista">
-            {historial.map((entrada) => (
-              <article key={entrada.id} className="calculadora__historialItem">
-                <p className="calculadora__historialRuta">
-                  {[entrada.origen, entrada.destino].filter(Boolean).join(" → ") || "Viaje"}
-                </p>
-                <p className="textoSuave">
-                  {new Date(entrada.fecha).toLocaleString("es-ES", {
-                    day: "2-digit",
-                    month: "2-digit",
-                    year: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                  {entrada.esConvoy ? " · convoy" : ""} ·{" "}
-                  {entrada.idaYVuelta ? "ida y vuelta" : "solo ida"}
-                </p>
-                <p>Total: {formatearEuros(entrada.resultado.costeTotal)}</p>
-              </article>
-            ))}
-          </div>
-        )}
-        <p className="textoSuave">
-          Se guarda solo en este dispositivo: si borras la caché, se pierde.
-        </p>
-      </div>
     </section>
   );
 }

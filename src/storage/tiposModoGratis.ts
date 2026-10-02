@@ -12,12 +12,22 @@ export interface PerfilLocal {
   coches: CocheLocal[];
 }
 
+export type TipoCombustible = "diesel" | "gasolina" | "electrico";
+
+export const ETIQUETAS_COMBUSTIBLE: Record<TipoCombustible, string> = {
+  diesel: "Diésel",
+  gasolina: "Gasolina",
+  electrico: "Eléctrico",
+};
+
 export interface CocheLocal {
   id: string; // uuid generado en el cliente
   marca: string;
   modelo: string;
   matricula: string;
   consumo: number; // l/100km
+  precioPorLitro: number; // €/L — se rellena solo al dar de alta el coche
+  tipoCombustible: TipoCombustible;
 }
 
 export interface GastoAdicionalLocal {
@@ -30,6 +40,9 @@ export interface CocheDelViajeLocal {
   idCoche?: string; // referencia a un CocheLocal del perfil, si existe
   numeroPasajeros: number;
   incluirConductorEnReparto: boolean;
+  // Foto del momento del cálculo (el perfil puede cambiar después).
+  consumo?: number; // l/100km
+  precioPorLitro?: number; // €/L
 }
 
 export interface ResultadoCalculo {
@@ -55,11 +68,13 @@ export interface EntradaHistorial {
 }
 
 // Formulario de la calculadora: como CocheDelViajeLocal pero con el consumo
-// a mano (puede venir del perfil o escribirse libremente).
+// y el precio a mano (vienen del perfil al elegir coche, o se escriben libres).
 export interface CocheFormularioLocal {
   nombreConductor: string;
   idCoche?: string; // referencia a un CocheLocal del perfil, si existe
   consumo: number; // l/100km
+  precioPorLitro: number; // €/L
+  tipoCombustible?: TipoCombustible;
   numeroPasajeros: number;
   incluirConductorEnReparto: boolean;
 }
@@ -69,7 +84,7 @@ export interface UltimoViajeLocal {
   origen: string;
   destino: string;
   distanciaKm: number | null;
-  precioPorLitro: number | null;
+  precioPorLitro: number | null; // compat: precio del primer coche (ahora va por coche)
   idaYVuelta: boolean;
   esConvoy: boolean;
   coches: CocheFormularioLocal[];

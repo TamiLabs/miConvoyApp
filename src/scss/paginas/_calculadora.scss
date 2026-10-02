@@ -118,7 +118,7 @@
 .calculadora__pasoCochesValor {
   min-width: 2.5rem;
   text-align: center;
-  font-size: 1.25rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -183,6 +183,8 @@
 .calculadora__accionesResultado {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  align-items: center;
   gap: 0.5rem;
 }
 
@@ -190,30 +192,15 @@
   min-height: 2.75rem;
 }
 
-.calculadora__historial {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  border-top: 1px solid $colorBorde;
-  padding-top: $espaciadoBase;
-}
+.calculadora__toggleRedondeo {
+  text-align: center;
+  color: $colorSecundario;
+  font-size: 0.85rem;
+  cursor: pointer;
 
-.calculadora__historialLista {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.calculadora__historialItem {
-  border: 1px solid $colorBorde;
-  border-radius: $radioBorde;
-  padding: 0.6rem 0.75rem;
-  display: flex;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.calculadora__historialRuta {
-  font-weight: 700;
+  &:hover {
+    text-decoration: underline;
+  }
 }
 
 @media (min-width: 768px) {

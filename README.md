@@ -227,3 +227,11 @@ La app debe funcionar igual de bien tanto si el servidor está desplegado como s
 - [ ] Definir el detalle del "health check" de disponibilidad del servidor.
 - [ ] Diseñar el adaptador de storage y la lógica de sincronización que mapea `HistorialEntry` a `Viaje`.
 - [ ] Maquetar el flujo de pantallas paso a paso del Modo Free.
+
+miguelturra → ciudad real
+2/10/2026 · Ida y vuelta · 5 km · 4 personas
+Hugo Sánchez
+Skoda Octavia TDI 1.9
+1,00 €
+por persona
+MiConvoy

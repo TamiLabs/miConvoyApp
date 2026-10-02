@@ -15,7 +15,7 @@ Estado actual: implementado en `src/components/crearPerfil.tsx`.
 
 ### 1.2 Dar de alta un coche en popup reutilizable — ✅ Hecho
 
-Formulario de alta (marca, modelo, matrícula, consumo L/100km) dentro del componente reutilizable `VentanaEmergente` (cierra con ✕, fondo y Escape). Acepta `,` o `.` en decimales (`interpretarNumero`).
+Formulario de alta (marca, modelo, matrícula, consumo L/100km, precio €/L y tipo diésel/gasolina/eléctrico) dentro del componente reutilizable `VentanaEmergente` (cierra con ✕, fondo y Escape). Acepta `,` o `.` en decimales (`interpretarNumero`).
 Estado: `src/components/formularioCoche.tsx`, `src/components/ventanaEmergente.tsx`.
 
 ### 1.3 Listar coches en tarjetas + eliminar — ✅ Hecho
@@ -33,10 +33,10 @@ Estado: `src/app/perfil/page.tsx` + `FormularioCoche`.
 Interruptor en el perfil (`PerfilLocal.tieneCoche`); sin coche, la sección de coches se oculta y la calculadora acepta consumo manual.
 Estado: `src/app/perfil/page.tsx`.
 
-### 1.6 Cerrar sesión / borrar perfil local — ✅ Hecho
+### 1.6 Olvidar en este dispositivo (con correo recordado) — ✅ Hecho
 
-Botón con confirmación que elimina la clave `miconvoy_perfil` y vuelve al estado "crear perfil". El historial se conserva. Incluye aviso de que borrar la caché elimina perfil e historial.
-Estado: `src/app/perfil/page.tsx` (`eliminarPerfil`).
+Botón "Olvidar en este dispositivo" con confirmación: elimina `miconvoy_perfil` y vuelve al login (apartado Cuenta). El historial se conserva y el correo se recuerda (`miconvoy_ultimo_correo`) para precargarlo al volver.
+Estado: `src/app/perfil/page.tsx` (`eliminarPerfil`, `guardarUltimoCorreo`).
 
 ### 1.7 Aviso de crear contraseña con servidor activo — ⬜ Pendiente (base UI hecha)
 
@@ -70,7 +70,7 @@ La distancia se escribe a mano (acepta `,` y `.`), así el cálculo nunca queda 
 
 ### 2.5 Selección de coche (del perfil o manual) — ✅ Hecho
 
-Si hay perfil con coches, desplegable por cada coche del viaje (rellena el consumo); si no, consumo manual. Crear viaje no requiere cuenta.
+Si hay perfil con coches, desplegable "¿Qué coche vas a usar?" por cada coche del viaje: consumo y precio quedan internos (más etiqueta del tipo de combustible); si no, consumo y precio manuales. Crear viaje no requiere cuenta.
 
 ### 2.6 Reutilizar últimos datos introducidos — ✅ Hecho
 
@@ -95,11 +95,11 @@ Filas nombre + importe con añadir/quitar; aceptan `,` y `.`. En convoy se repar
 
 ### 2.11 Botón "Calcular viaje" + validaciones — ✅ Hecho
 
-Valida distancia, precio, conductor, consumo, pasajeros (≥1 participante en el reparto) y gastos; ejecuta `calcularConvoy`.
+Valida distancia, conductor, consumo y precio (por coche: interno del perfil u manual), ocupantes (≥1, y ≥2 si el conductor no paga) y gastos; ejecuta `calcularConvoy`. No guarda nada: solo muestra el resultado.
 
 ### 2.12 Resumen editable + botón "Recalcular" — ✅ Hecho
 
-Los pasos son el resumen editable (botón "Editar datos" desde el resultado); si se cambia algo tras calcular, aviso + botón "Recalcular".
+Los pasos son el resumen editable (botón "Editar datos" desde el resultado); si se cambia algo tras calcular, aviso + botón "Recalcular". "Finalizar viaje" guarda en el historial; recalcular tras editar permite finalizar de nuevo.
 
 ### 2.13 Tarjeta de resultado tipo "recibo" — ✅ Hecho (base)
 
@@ -136,19 +136,19 @@ Estado: tipos + guardado en `PaginaCalculadora`.
 
 ## 4. Historial local
 
-### 4.1 Guardar cada cálculo en el historial (máx. 10) — ✅ Hecho
+### 4.1 Guardar al "Finalizar viaje" (máx. 10, solo si activo) — ✅ Hecho
 
-Al calcular se añade `EntradaHistorial` (la más reciente primero, se descarta la más antigua).
-Estado: `anadirEntradaHistorial` + llamada desde la calculadora.
+Calcular no guarda: solo "Finalizar viaje" añade `EntradaHistorial` (la más reciente primero, se descarta la más antigua), y solo si el historial está activado en el perfil. Recalcular tras editar permite guardar de nuevo.
+Estado: `alFinalizar` en la calculadora + `obtenerHistorialActivo`.
 
-### 4.2 Ver historial de viajes — ✅ Hecho (base)
+### 4.2 Ver historial en el perfil + interruptor on/off — ✅ Hecho (base)
 
-Lista bajo la calculadora con ruta, fecha, ida/vuelta y total. Sin vista detalle todavía.
+Apartado Historial en `/perfil` con interruptor "Guardar historial de viajes", lista con ruta, fecha, ida/vuelta y total, botón vaciar y aviso local. Sin vista detalle todavía.
 
 ### 4.3 Botón vaciar historial — ✅ Hecho
 
 Borra todos los registros con confirmación.
-Estado: `limpiarHistorial` + botón en la calculadora.
+Estado: `limpiarHistorial` + botón en el perfil.
 
 ### 4.4 Aviso de pérdida de datos al borrar caché — ✅ Hecho
 
