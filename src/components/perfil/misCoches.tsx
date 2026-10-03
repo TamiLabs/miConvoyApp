@@ -72,6 +72,7 @@ export function MisCoches({
                   </h4>
                   <p className="textoSuave">{coche.matricula}</p>
                   <p>Consumo: {coche.consumo} L/100km</p>
+                  <p>{coche.plazas ?? 5} plazas</p>
                   <p>
                     {(coche.precioPorLitro ?? 0) > 0
                       ? `${formatearEuros(coche.precioPorLitro)} · ${ETIQUETAS_COMBUSTIBLE[coche.tipoCombustible] ?? coche.tipoCombustible}`

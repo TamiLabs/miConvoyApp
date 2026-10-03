@@ -8,6 +8,7 @@ import {
   faArrowRight,
   faCalculator,
   faCopy,
+  faFlagCheckered,
   faLocationDot,
   faMinus,
   faPlus,
@@ -24,7 +25,6 @@ import {
   obtenerPerfil,
   obtenerUltimoViaje,
 } from "@/storage/datosLocales";
-import { ETIQUETAS_COMBUSTIBLE } from "@/storage/tiposModoGratis";
 import type {
   CocheDelViajeLocal,
   EntradaHistorial,
@@ -183,6 +183,12 @@ export default function PaginaCalculadora() {
     const elegido = perfil?.coches.find((c) => c.id === coche.idCoche);
     if (elegido) return elegido.precioPorLitro > 0 ? elegido.precioPorLitro : null;
     return interpretarNumero(coche.precioTexto);
+  };
+
+  // Plazas del coche elegido (tope de ocupantes con conductor). En manual no hay tope.
+  const plazasDeCoche = (coche: CocheForm): number | null => {
+    const elegido = perfil?.coches.find((c) => c.id === coche.idCoche);
+    return elegido?.plazas ?? null;
   };
 
   // El campo pide ocupantes totales (pasajeros + conductor). Con la casilla
@@ -355,6 +361,9 @@ export default function PaginaCalculadora() {
         return `${etiqueta}Escribe cuántas personas van en el coche (mínimo 1).`;
       if (!coche.incluirConductor && ocupantes < 2)
         return `${etiqueta}Si el conductor no paga, tiene que haber al menos 2 ocupantes.`;
+      const plazas = plazasDeCoche(coche);
+      if (plazas !== null && ocupantes > plazas)
+        return `${etiqueta}Este coche tiene ${plazas} plazas como máximo (incluido el conductor).`;
     }
     return null;
   };
@@ -812,12 +821,14 @@ export default function PaginaCalculadora() {
                   }}
                   placeholder="4"
                   inputMode="numeric"
+                  max={plazasDeCoche(coche) ?? undefined}
                 />
                 {Number.parseInt(coche.pasajerosTexto, 10) >= 1 && (
                   <span className="textoSuave">
                     {coche.incluirConductor
                       ? `Se divide entre ${coche.pasajerosTexto} (todos pagan)`
                       : `Se divide entre ${Number.parseInt(coche.pasajerosTexto, 10) - 1} (el conductor va invitado)`}
+                    {plazasDeCoche(coche) !== null ? ` · máx. ${plazasDeCoche(coche)}` : ""}
                   </span>
                 )}
               </label>
@@ -985,7 +996,7 @@ export default function PaginaCalculadora() {
 
               {!guardado && !desactualizado && historialActivo && (
                 <button type="button" className="formulario__botonPrincipal" onClick={alFinalizar}>
-                  Finalizar viaje
+                  <FontAwesomeIcon icon={faFlagCheckered} /> Finalizar viaje
                 </button>
               )}
               {!guardado && !desactualizado && !historialActivo && (

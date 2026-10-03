@@ -13,7 +13,7 @@ export async function GET() {
       servidorOn: false,
       baseDatosOk: false,
       disponible: false,
-      motivo: "Servidor desactivado (SERVER_ON=false).",
+      motivo: "Modo online desactivado.",
     });
   }
   try {
@@ -29,7 +29,7 @@ export async function GET() {
       servidorOn: true,
       baseDatosOk: false,
       disponible: false,
-      motivo: "Servidor activo pero sin conexión a la base de datos.",
+      motivo: "Problemas para conectar con el servidor.",
     });
   }
 }

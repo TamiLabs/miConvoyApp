@@ -1,6 +1,6 @@
 // src/db.ts — punto único de conexión a la base de datos.
 //
-// Hoy apunta al Postgres de Docker (DATABASE_URL en .env); en el futuro
+// Hoy apunta al MySQL de Docker (DATABASE_URL en .env); en el futuro
 // apuntará al servidor real (Neon/Supabase/...) cambiando SOLO esa variable,
 // sin tocar código. El singleton vía globalThis evita agotar conexiones en
 // desarrollo (hot-reload de Next).

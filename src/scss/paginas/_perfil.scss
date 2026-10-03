@@ -122,7 +122,6 @@
   border: 1px solid $colorBorde;
   border-radius: $radioBorde;
   padding: 0.6rem 0.75rem;
-  margin-bottom: 1rem;
   min-height: 2.75rem;
   cursor: pointer;
   color: $colorTextoSuave;
@@ -144,7 +143,6 @@
 .paginaPerfil__accionesCoche {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.5rem;
   flex-wrap: wrap;
 }
 
@@ -200,6 +198,12 @@
   gap: 0.75rem;
 }
 
+.paginaPerfil__separador {
+  border: none;
+  border-top: 1px solid $colorBorde;
+  margin: 0.25rem 0;
+}
+
 .paginaPerfil__nota {
   font-size: 0.85rem;
 }
@@ -218,5 +222,37 @@
   flex-direction: column;
   font-size: 0.85rem;
   list-style: none;
+  color: $colorTextoSuave;
+}
+
+.contrasena__fuerza {
+  display: flex;
+  gap: 4px;
+}
+
+.contrasena__segmento {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background-color: $colorBorde;
+}
+
+.contrasena__conOjo {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.contrasena__conOjo .formulario__entrada {
+  flex: 1;
+  min-width: 0;
+}
+
+.contrasena__ojo {
+  background: none;
+  border: 1px solid $colorBorde;
+  border-radius: $radioBorde;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  cursor: pointer;
   color: $colorTextoSuave;
 }

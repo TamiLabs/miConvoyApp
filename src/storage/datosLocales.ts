@@ -11,6 +11,8 @@ const CLAVE_PERFIL = "miconvoy_perfil";
 const CLAVE_ULTIMO_VIAJE = "miconvoy_ultimo_viaje";
 const CLAVE_HISTORIAL_ACTIVO = "miconvoy_historial_activo";
 const CLAVE_ULTIMO_CORREO = "miconvoy_ultimo_correo";
+const CLAVE_CREDENCIAL = "miconvoy_credencial";
+const CLAVE_HISTORIAL_SUBIDO = "miconvoy_historial_subido";
 const MAXIMO_HISTORIAL = 10;
 
 export async function obtenerHistorial(
@@ -89,4 +91,33 @@ export async function guardarUltimoCorreo(
   correo: string,
 ): Promise<void> {
   await almacenamiento.guardar(CLAVE_ULTIMO_CORREO, correo);
+}
+
+// Hash local de la contraseña (provisional hasta el registro con servidor).
+// NO es protección real: solo evita pedirla cada vez en este dispositivo.
+export async function guardarHashContrasena(
+  almacenamiento: Almacenamiento,
+  hash: string,
+): Promise<void> {
+  await almacenamiento.guardar(CLAVE_CREDENCIAL, hash);
+}
+
+export async function obtenerHashContrasena(
+  almacenamiento: Almacenamiento,
+): Promise<string | null> {
+  return almacenamiento.obtener<string>(CLAVE_CREDENCIAL);
+}
+
+// Ids del historial ya subidos al servidor (para no duplicar viajes).
+export async function obtenerIdsHistorialSubidos(
+  almacenamiento: Almacenamiento,
+): Promise<string[]> {
+  return (await almacenamiento.obtener<string[]>(CLAVE_HISTORIAL_SUBIDO)) ?? [];
+}
+
+export async function guardarIdsHistorialSubidos(
+  almacenamiento: Almacenamiento,
+  ids: string[],
+): Promise<void> {
+  await almacenamiento.guardar(CLAVE_HISTORIAL_SUBIDO, ids);
 }

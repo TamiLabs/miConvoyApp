@@ -9,7 +9,10 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body>
+      {/* Las extensiones del navegador (p. ej. ColorZilla añade
+          cz-shortcut-listen) tocan el body y provocan avisos de
+          hidratación: se ignoran a propósito. */}
+      <body suppressHydrationWarning>
         <NavegacionPestanas />
         <main className="contenedorPrincipal">{children}</main>
       </body>

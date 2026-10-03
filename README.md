@@ -168,7 +168,7 @@ precioFinal = Math.ceil(costePorPersona / 0.5) * 0.5
 
 ### Requisitos técnicos del servidor
 
-- Base de datos: PostgreSQL gestionado (Neon, Supabase o Railway) — proveedor final todavía por elegir.
+- Base de datos: MySQL gestionado (Railway, Aiven, PlanetScale…) — proveedor final todavía por elegir.
 - Autenticación: NextAuth.js (con Google como proveedor preferente).
 - Tiempo real: dado que Vercel no soporta WebSockets persistentes en funciones serverless, las opciones son:
   - **Pusher / Ably** (gestionados, integración rápida, pago por uso) — recomendado para velocidad de desarrollo.
@@ -197,7 +197,7 @@ La app debe funcionar igual de bien tanto si el servidor está desplegado como s
 ## 11. Desarrollo local: Docker y base de datos
 
 - El esquema de la base de datos se define en ficheros dentro del propio repositorio (el `schema.prisma` de Prisma cumple exactamente esta función: es el fichero que describe toda la estructura de la BBDD).
-- Para desarrollo, un `docker-compose.yml` levanta un contenedor local de PostgreSQL. Al ejecutarlo junto con `prisma migrate dev`, se crea la base de datos local a partir del esquema y se generan ficheros de migración.
+- Para desarrollo, un `docker-compose.yml` levanta un contenedor local de MySQL. Al ejecutarlo junto con `prisma migrate dev`, se crea la base de datos local a partir del esquema y se generan ficheros de migración.
 - Esos mismos ficheros de migración son los que después se aplican contra la base de datos del servidor real (`prisma migrate deploy`), cambiando solo la variable de conexión (`DATABASE_URL`) — no hace falta mantener dos definiciones distintas de la BBDD.
 
 ## 12. Distribución y actualizaciones

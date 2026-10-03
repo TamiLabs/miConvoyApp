@@ -41,14 +41,13 @@ export async function buscarDirecciones(
   senal?: AbortSignal,
 ): Promise<SugerenciaDireccion[]> {
   const clave = leerClaveORS();
-  if (!clave) throw new Error("Falta NEXT_PUBLIC_ORS_API_KEY en el .env.");
+  if (!clave) throw new Error("Servicio de mapas no disponible.");
   const url =
     `https://api.openrouteservice.org/geocode/autocomplete` +
     `?api_key=${clave}&text=${encodeURIComponent(texto)}` +
     `&boundary.country=ES&size=5&lang=es`;
   const respuesta = await fetch(url, { signal: senal });
-  if (!respuesta.ok)
-    throw new Error("No se pudo buscar la dirección (revisa la key o la conexión).");
+  if (!respuesta.ok) throw new Error("No se pudo buscar la dirección. Comprueba tu conexión.");
   const datos = (await respuesta.json()) as RespuestaGeocode;
   return (datos.features ?? [])
     .filter((f) => f.geometry?.coordinates)
@@ -72,7 +71,7 @@ export async function calcularRutaORS(
   destino: PuntoRuta,
 ): Promise<RutaCalculada> {
   const clave = leerClaveORS();
-  if (!clave) throw new Error("Falta NEXT_PUBLIC_ORS_API_KEY en el .env.");
+  if (!clave) throw new Error("Servicio de mapas no disponible.");
   const respuesta = await fetch(
     "https://api.openrouteservice.org/v2/directions/driving-car/geojson",
     {
@@ -86,7 +85,7 @@ export async function calcularRutaORS(
       }),
     },
   );
-  if (!respuesta.ok) throw new Error("No se pudo calcular la ruta (revisa la key o la conexión).");
+  if (!respuesta.ok) throw new Error("No se pudo calcular la ruta. Comprueba tu conexión.");
   const datos = (await respuesta.json()) as RespuestaRuta;
   const tramo = datos.features?.[0];
   if (!tramo?.geometry?.coordinates) throw new Error("Sin ruta entre esos dos puntos.");

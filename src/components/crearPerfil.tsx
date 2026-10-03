@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { GoogleLogin, GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
+import { GoogleLogin, GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 import { faGoogle } from "@fortawesome/free-brands-svg-icons";
 
 export interface DatosPerfilNuevo {
@@ -105,10 +106,7 @@ export function CrearPerfil({ alCrear, correoInicial = "" }: PropiedadesCrearPer
           <BotonesGoogle alCrear={alCrear} alFallar={setError} />
         </GoogleOAuthProvider>
       ) : (
-        <p className="textoSuave">
-          Pon tu client ID de Google en NEXT_PUBLIC_GOOGLE_CLIENT_ID para activar el botón real, o
-          continúa con correo y nombre (modo local).
-        </p>
+        <p className="textoSuave">O continúa con tu correo y nombre.</p>
       )}
       <form className="formulario" onSubmit={alEnviarManual}>
         <label className="formulario__campo">
@@ -134,7 +132,7 @@ export function CrearPerfil({ alCrear, correoInicial = "" }: PropiedadesCrearPer
         </label>
         {error ? <p className="formulario__error">{error}</p> : null}
         <button type="submit" className="formulario__botonPrincipal">
-          Crear perfil
+          <FontAwesomeIcon icon={faUserPlus} /> Crear perfil
         </button>
       </form>
     </div>

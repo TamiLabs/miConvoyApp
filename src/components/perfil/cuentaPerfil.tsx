@@ -1,83 +1,64 @@
 "use client";
 
-import { useEstadoServidor } from "@/hooks/useEstadoServidor";
+import { useEffect, useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faKey, faRightFromBracket } from "@fortawesome/free-solid-svg-icons";
+import { adaptadorAlmacenamientoLocal } from "@/storage/almacenamiento";
+import { guardarHashContrasena, obtenerHashContrasena } from "@/storage/datosLocales";
+import { CrearContrasena } from "@/components/perfil/crearContrasena";
 
 interface PropiedadesCuentaPerfil {
   ultimoCorreo: string;
-  mensajeServidor: string | null;
-  alPulsarServidor: () => void;
   alOlvidar: () => void;
 }
 
-export function CuentaPerfil({
-  ultimoCorreo,
-  mensajeServidor,
-  alPulsarServidor,
-  alOlvidar,
-}: PropiedadesCuentaPerfil) {
-  const { cargando, disponible } = useEstadoServidor();
+export function CuentaPerfil({ ultimoCorreo, alOlvidar }: PropiedadesCuentaPerfil) {
+  const [popupContrasena, setPopupContrasena] = useState(false);
+  const [hayContrasena, setHayContrasena] = useState(false);
+  const [mensajeContrasena, setMensajeContrasena] = useState<string | null>(null);
+
+  useEffect(() => {
+    obtenerHashContrasena(adaptadorAlmacenamientoLocal).then((hash) => setHayContrasena(!!hash));
+  }, []);
+
+  const alGuardarContrasena = async (hash: string) => {
+    await guardarHashContrasena(adaptadorAlmacenamientoLocal, hash);
+    setHayContrasena(true);
+    setPopupContrasena(false);
+    setMensajeContrasena("Contraseña guardada en este dispositivo.");
+  };
 
   return (
     <section aria-label="Cuenta" className="paginaPerfil__apartado">
       <h3 className="paginaPerfil__subtitulo">Cuenta</h3>
-      {cargando ? (
-        <p className="textoSuave">Comprobando servidor…</p>
-      ) : disponible ? (
-        <>
-          <p className="aviso">
-            Crea una contraseña para proteger tu historial si otra persona entra con tu mismo correo
-            en otro dispositivo.
-          </p>
-          <div className="paginaPerfil__accionesCoche">
-            <button
-              type="button"
-              className="formulario__botonSecundario"
-              onClick={alPulsarServidor}
-            >
-              Crear contraseña
-            </button>
-            <button type="button" className="formulario__botonPrincipal" onClick={alPulsarServidor}>
-              Subir perfil e historial
-            </button>
-          </div>
-          {mensajeServidor ? <p className="textoSuave">{mensajeServidor}</p> : null}
-        </>
-      ) : (
-        <p className="textoSuave">
-          Servidor no activo: aquí aparecerá la sincronización cuando se despliegue el backend.
-        </p>
-      )}
-      <div>
-        <button type="button" className="paginaPerfil__botonEliminar" onClick={alOlvidar}>
-          Olvidar en este dispositivo
+      <div className="paginaPerfil__accionesCoche">
+        <button
+          type="button"
+          className="formulario__botonSecundario"
+          onClick={() => {
+            setMensajeContrasena(null);
+            setPopupContrasena(true);
+          }}
+        >
+          <FontAwesomeIcon icon={faKey} />{" "}
+          {hayContrasena ? "Cambiar contraseña" : "Crear contraseña"}
         </button>
-        <p className="textoSuave paginaPerfil__nota">
-          Borra tu perfil de este dispositivo (el historial se conserva). Al volver a iniciar sesión
-          se te recordará el correo {ultimoCorreo || "usado"}.
-        </p>
+        <button type="button" className="paginaPerfil__botonEliminar" onClick={alOlvidar}>
+          <FontAwesomeIcon icon={faRightFromBracket} /> Cerrar sesión
+        </button>
       </div>
-      <div className="paginaPerfil__legal">
-        <h4 className="paginaPerfil__subtitulo">Librerías</h4>
-        <p className="textoSuave paginaPerfil__nota">
-          Esta app usa las siguientes librerías y servicios, con sus licencias:
-        </p>
-        <ul className="paginaPerfil__legalLista">
-          <li>
-            <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> — datos del mapa
-            (ODbL).
-          </li>
-          <li>
-            <a href="https://leafletjs.com/">Leaflet</a> — mapa interactivo (BSD-2-Clause).
-          </li>
-          <li>
-            <a href="https://openrouteservice.org/">OpenRouteService</a> — cálculo de rutas.
-          </li>
-          <li>
-            <a href="https://fontawesome.com/license/free">Font Awesome Free</a> — iconos (CC BY
-            4.0).
-          </li>
-        </ul>
-      </div>
+      {mensajeContrasena ? <p className="textoSuave">{mensajeContrasena}</p> : null}
+      <p className="textoSuave paginaPerfil__nota">
+        La contraseña es provisional y solo vale en este dispositivo hasta que exista el registro
+        con servidor. Al volver a iniciar sesión se te recordará el correo {ultimoCorreo || "usado"}
+        .
+      </p>
+      <CrearContrasena
+        abierto={popupContrasena}
+        existePrevia={hayContrasena}
+        alCerrar={() => setPopupContrasena(false)}
+        alGuardar={alGuardarContrasena}
+      />
     </section>
   );
 }

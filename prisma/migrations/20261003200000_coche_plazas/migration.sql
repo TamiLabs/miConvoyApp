@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `Coche` ADD COLUMN `plazas` INTEGER NOT NULL DEFAULT 5;

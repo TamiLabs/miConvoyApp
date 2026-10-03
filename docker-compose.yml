@@ -1,15 +1,17 @@
 services:
   db:
-    image: postgres:16
+    image: mysql:8.0
     restart: always
+    command: --default-authentication-plugin=mysql_native_password
     environment:
-      POSTGRES_USER: miconvoy
-      POSTGRES_PASSWORD: miconvoy
-      POSTGRES_DB: miconvoy
+      MYSQL_ROOT_PASSWORD: rootmiconvoy
+      MYSQL_DATABASE: miconvoy
+      MYSQL_USER: miconvoy
+      MYSQL_PASSWORD: miconvoy
     ports:
-      - "5432:5432"
+      - "3306:3306"
     volumes:
-      - miconvoy_db_data:/var/lib/postgresql/data
+      - miconvoy_db_data:/var/lib/mysql
 
 volumes:
   miconvoy_db_data:

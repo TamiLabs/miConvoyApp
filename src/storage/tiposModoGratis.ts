@@ -28,6 +28,7 @@ export interface CocheLocal {
   consumo: number; // l/100km
   precioPorLitro: number; // €/L — se rellena solo al dar de alta el coche
   tipoCombustible: TipoCombustible;
+  plazas: number; // ocupantes máximos, incluido el conductor
 }
 
 export interface GastoAdicionalLocal {

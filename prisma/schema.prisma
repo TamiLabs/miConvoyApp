@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
 }
 
@@ -18,6 +18,7 @@ model User {
   email     String   @unique // identificador natural para enlazar con el perfil local
   name      String?
   image     String?
+  password  String? // hash SHA-256 local subido desde el perfil (provisional)
   createdAt DateTime @default(now())
 
   accounts          Account[]
@@ -72,6 +73,9 @@ model Coche {
   modelo    String
   matricula String
   consumo   Float // l/100km
+  precio    Float  @default(0) // €/L
+  tipoCombustible String @default("gasolina")
+  plazas    Int    @default(5) // ocupantes máximos, incluido el conductor
 
   // Si dos personas comparten un coche físico, cada una lo da de alta por
   // separado: no hay una única fila compartida entre varios propietarios.
@@ -92,6 +96,10 @@ model Viaje {
 
   // "free" = creado sin cuenta y subido después; "online" = creado ya con cuenta.
   modoOrigen String @default("online")
+
+  // Id del historial local (EntradaHistorial.id): hace la subida idempotente
+  // y permite comparar qué viajes le faltan al servidor.
+  origenClienteId String? @unique
 
   // Solo se genera cuando el viaje es un convoy en Modo Online.
   enlaceInvitacion String? @unique
