@@ -1,6 +1,6 @@
 "use client";
 
-import { SERVIDOR_ACTIVADO } from "@/configuracion";
+import { useEstadoServidor } from "@/hooks/useEstadoServidor";
 
 interface PropiedadesCuentaPerfil {
   ultimoCorreo: string;
@@ -15,10 +15,14 @@ export function CuentaPerfil({
   alPulsarServidor,
   alOlvidar,
 }: PropiedadesCuentaPerfil) {
+  const { cargando, disponible } = useEstadoServidor();
+
   return (
     <section aria-label="Cuenta" className="paginaPerfil__apartado">
       <h3 className="paginaPerfil__subtitulo">Cuenta</h3>
-      {SERVIDOR_ACTIVADO ? (
+      {cargando ? (
+        <p className="textoSuave">Comprobando servidor…</p>
+      ) : disponible ? (
         <>
           <p className="aviso">
             Crea una contraseña para proteger tu historial si otra persona entra con tu mismo correo

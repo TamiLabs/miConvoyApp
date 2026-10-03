@@ -164,7 +164,7 @@ Criterios: ver 1.8 y 9.3.
 
 ### 5.1 Página "no disponible" degradada — ✅ Hecho (base)
 
-Si `SERVIDOR_ACTIVADO` es falso, muestra "no disponible" sin errores.
+Si el hook `useEstadoServidor` dice no disponible, muestra "no disponible" sin errores (con motivo).
 Estado: `src/app/online/page.tsx`. Falta el resto de esta sección.
 
 ### 5.2 Crear viaje online + enlace de invitación — ⬜ Pendiente
@@ -258,9 +258,9 @@ El cálculo online debe llamar a las mismas funciones puras que el cliente.
 PostgreSQL gestionado (Neon, Supabase o Railway) + tiempo real (Pusher/Ably recomendado, o Supabase Realtime, o Socket.io autoalojado) + validación Zod.
 Criterios: decisión documentada en README.
 
-### 8.5 Docker local + migraciones — ✅/⬜ Parcial
+### 8.5 Docker local + migraciones — ✅ Hecho
 
-`docker-compose.yml` y comandos `db:*` existen; falta verificar `migrate dev` genera migraciones y `migrate deploy` sirve para el servidor real.
+Postgres en Docker (`npm run db:up`), migración inicial aplicada (`prisma migrate dev`) y cliente generado. `src/db.ts` es el punto único de conexión: en el futuro solo cambia `DATABASE_URL`. Falta probar `migrate deploy` contra el servidor real cuando exista.
 
 ---
 
@@ -278,9 +278,9 @@ Gratuito, sin facturación, compatible con WebView de Capacitor.
 
 `EntradaHistorial→Viaje(modoOrigen:"gratis")`, `CocheDelViajeLocal→CocheDelViaje(numeroPasajerosLibre)`, `GastoAdicionalLocal→GastoAdicional`, `PerfilLocal.coches→Coche`. Tipos locales ya preparados (origen/destino, detallePorCoche).
 
-### 9.4 Health check del backend + degradado — ⬜ Pendiente
+### 9.4 Health check del backend + degradado — ✅ Hecho
 
-Además de `SERVIDOR_ACTIVADO` (✅ hecho en `configuracion.ts`), llamada de salud: si no responde, degradar a Gratis sin errores.
+`GET /api/salud` centraliza `SERVER_ON` + ping a la BBDD; el hook `useEstadoServidor` lo consume en `/online` y Cuenta. Probado en vivo (DB ok y DB caída). `configuracion.ts` eliminado.
 
 ---
 
