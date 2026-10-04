@@ -48,11 +48,7 @@ export function CuentaPerfil({ ultimoCorreo, alOlvidar }: PropiedadesCuentaPerfi
         </button>
       </div>
       {mensajeContrasena ? <p className="textoSuave">{mensajeContrasena}</p> : null}
-      <p className="textoSuave paginaPerfil__nota">
-        La contraseña es provisional y solo vale en este dispositivo hasta que exista el registro
-        con servidor. Al volver a iniciar sesión se te recordará el correo {ultimoCorreo || "usado"}
-        .
-      </p>
+
       <CrearContrasena
         abierto={popupContrasena}
         existePrevia={hayContrasena}

@@ -15,11 +15,15 @@ import {
   guardarHistorialActivo,
   guardarPerfil,
   guardarUltimoCorreo,
+  guardarVersionPerfil,
   limpiarHistorial,
+  migrarPerfilLocal,
   obtenerHistorial,
   obtenerHistorialActivo,
   obtenerPerfil,
   obtenerUltimoCorreo,
+  obtenerVersionPerfil,
+  VERSION_PERFIL,
 } from "@/storage/datosLocales";
 import type { CocheLocal, EntradaHistorial, PerfilLocal } from "@/storage/tiposModoGratis";
 import { VentanaEmergente } from "@/components/ventanaEmergente";
@@ -62,8 +66,17 @@ export default function PaginaPerfil() {
         obtenerHistorialActivo(adaptadorAlmacenamientoLocal),
         obtenerUltimoCorreo(adaptadorAlmacenamientoLocal),
       ]);
-      if (guardado && guardado.tieneCoche === undefined) {
-        setPerfil({ ...guardado, tieneCoche: true });
+      if (guardado) {
+        // Migra perfiles antiguos una sola vez (bandera de versión).
+        const version = await obtenerVersionPerfil(adaptadorAlmacenamientoLocal);
+        if (version < VERSION_PERFIL) {
+          const migrado = migrarPerfilLocal(guardado);
+          await guardarPerfil(adaptadorAlmacenamientoLocal, migrado);
+          await guardarVersionPerfil(adaptadorAlmacenamientoLocal);
+          setPerfil(migrado);
+        } else {
+          setPerfil(guardado);
+        }
       } else {
         setPerfil(guardado);
       }
@@ -90,6 +103,7 @@ export default function PaginaPerfil() {
       };
       await persistir(nuevo);
       await guardarUltimoCorreo(adaptadorAlmacenamientoLocal, datos.correo);
+      await guardarVersionPerfil(adaptadorAlmacenamientoLocal);
       setUltimoCorreo(datos.correo);
     },
     [persistir],

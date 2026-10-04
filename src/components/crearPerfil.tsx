@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
-import { GoogleLogin, GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
-import { faGoogle } from "@fortawesome/free-brands-svg-icons";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 
 export interface DatosPerfilNuevo {
   correo: string;
@@ -33,24 +32,6 @@ function BotonesGoogle({
   alCrear: (datos: DatosPerfilNuevo) => void;
   alFallar: (mensaje: string) => void;
 }) {
-  const iniciarConGoogle = useGoogleLogin({
-    flow: "implicit",
-    scope: "openid email profile",
-    onSuccess: async (respuestaToken) => {
-      try {
-        const respuesta = await fetch(
-          `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${respuestaToken.access_token}`,
-        );
-        const datos = await respuesta.json();
-        if (!datos.email) throw new Error("sin correo");
-        alCrear({ correo: datos.email, nombre: datos.name ?? datos.email, foto: datos.picture });
-      } catch {
-        alFallar("No se pudo leer la cuenta de Google. Usa el formulario manual.");
-      }
-    },
-    onError: () => alFallar("No se pudo iniciar sesión con Google."),
-  });
-
   return (
     <div className="paginaPerfil__google">
       <GoogleLogin

@@ -23,48 +23,47 @@ Ambos modos viven en la **misma aplicación**: si el servidor no está activo o 
 
 ## 2. Stack tecnológico
 
-- **T3 Stack**: Next.js, TypeScript, tRPC, Prisma, NextAuth, Tailwind CSS, Zod.
-- **Empaquetado**: PWA instalable desde el navegador (Android e iOS).
-- **Portabilidad futura**: el código debe poder reutilizarse con **Capacitor** si en el futuro se convierte en app nativa. Se integrará desde ya, aunque no se publique nada todavía, para detectar pronto cualquier incompatibilidad.
-- **Despliegue inicial**: Modo Free alojado en Netlify (o similar), accesible públicamente para cualquier persona.
+- **Base**: Next.js 14, React 18, TypeScript, Prisma 5 + MySQL, SCSS propio (sin Tailwind), Leaflet + OpenStreetMap, Font Awesome, Google Identity Services (`@react-oauth/google`).
+- **Pendiente de incorporar**: NextAuth (cuentas online), tRPC (routers de servidor), Zod (validación) e `html-to-image` (compartir como PNG).
+- **Empaquetado**: PWA instalable desde el navegador (Android e iOS) — pendiente (sin manifest ni Service Worker todavía).
+- **Portabilidad futura**: el código debe poder reutilizarse con **Capacitor** si en el futuro se convierte en app nativa. El adaptador de storage y la geolocalización estándar ya lo tienen en cuenta.
+- **Despliegue inicial**: Modo Free alojado en Netlify (o similar), accesible públicamente para cualquier persona — pendiente.
 
-## 3. Arquitectura recomendada
+## 3. Arquitectura
 
-Para compartir código entre el Modo Free y el Modo Online sin duplicar lógica, se recomienda una estructura de monorepo (p. ej. con `create-t3-turbo`):
+Estructura simple en `src/` (se descartó el monorepo `apps/packages`: no compensa para este tamaño):
 
 ```
-apps/
-  web/            → Next.js: Modo Online completo (BD, tRPC, auth) + Modo Free
-  desktop/        → (futuro) wrapper Capacitor de la misma UI
-packages/
-  calculator/     → lógica pura de cálculo del viaje (compartida entre ambos modos)
-  ui/             → componentes de interfaz reutilizados
-  db/             → esquema Prisma (solo usado en Modo Online)
+src/
+  app/            → Next.js: páginas (calculadora, perfil, online) + API (salud, sincronizar, geocode, ruta)
+  components/     → UI reutilizable (incl. `perfil/`: misCoches, historialPerfil, cuentaPerfil, ...)
+  calculadora.ts  → lógica pura de cálculo (compartida entre ambos modos)
+  storage/        → tipos locales + adaptador de persistencia
+  mapas/          → cliente de OpenRouteService (vía proxy propio)
+  db.ts           → punto único de conexión Prisma (solo cambia DATABASE_URL)
 ```
 
-La pieza clave es `packages/calculator`: funciones puras en TypeScript, sin dependencias de red ni de base de datos, que se ejecutan:
+La pieza clave es `src/calculadora.ts`: funciones puras en TypeScript, sin dependencias de red ni de base de datos, que se ejecutan en el cliente (Modo Free) y se reutilizarán desde el servidor (Modo Online).
 
-- En el cliente, sin conexión al servidor, para el Modo Free.
-- Dentro de un router de tRPC, para el Modo Online.
-
-La persistencia local debe quedar detrás de un pequeño adaptador propio (`storage.get/set/clear`) en vez de llamar a `localStorage` directamente desde los componentes, de forma que cambiar de tecnología de almacenamiento en el futuro no obligue a tocar el resto de la app.
+La persistencia local queda detrás de un adaptador propio (`obtener`/`guardar`/`limpiar` en `src/storage/almacenamiento.ts`) en vez de llamar a `localStorage` directamente desde los componentes, de forma que cambiar de tecnología de almacenamiento en el futuro no obligue a tocar el resto de la app.
 
 ## 4. Modo Free — Flujo y funcionalidades
 
 ### Flujo de uso
 
-- Pantalla por pasos hasta llegar al resultado, con navegación mediante flechas (atrás / adelante).
-- El usuario elige destino y posición de partida (usando la geolocalización actual del dispositivo) para calcular los km del trayecto.
-- Se reutilizan automáticamente los datos de la última vez que se rellenó el formulario: quién conduce, pasajeros, coche y precio del combustible.
-- Antes del resultado final se muestra un **resumen editable** de los datos introducidos (formato de lista, pero no un `<ul>`). Si se edita algún dato, aparece un botón de **"Recalcular"**.
-- Crear un viaje en Modo Free **no requiere cuenta**. Si el usuario no tiene un perfil guardado, se le piden manualmente los campos que normalmente se autocompletarían desde el perfil (coche, consumo, etc.).
+- Pantalla por pasos (Viaje → Coches → Gastos → Resultado), clicables para navegar; al avanzar, cada paso valida sus campos (los que faltan parpadean 2 s).
+- El usuario elige origen y destino con autocompletado, o usa la geolocalización actual, y ve el mini-mapa con la ruta. Los km se calculan solos; si falla, se escriben a mano.
+- Se reutilizan automáticamente los datos del último viaje calculado (origen, destino, distancia, coches, gastos…).
+- El resultado no se guarda solo: hay botón de **"Recalcular"** si se edita algo tras calcular, y de **"Finalizar viaje"** para guardarlo en el historial.
+- Crear un viaje en Modo Free **no requiere cuenta**. Si el usuario no tiene perfil (o no tiene coches), introduce consumo y precio a mano en cada viaje.
 
 ### Coches y convoy
 
 - Por defecto, el cálculo es para **un solo coche**.
-- Existe una opción **"¿Es convoy?"** para calcular varios coches a la vez: se elige el número de coches y, por cada uno, se añade una tarjeta con un input para el nombre del conductor y el número de pasajeros de ese coche.
+- Existe una opción **"¿Es convoy?"** para calcular varios coches a la vez: stepper −/+ (1–6) y, por cada uno, una tarjeta con nombre del conductor, coche a usar (desplegable u "otro coche"), nº de ocupantes y si el conductor paga su parte.
 - Un "convoy" no es una entidad distinta: es simplemente un viaje con más de un coche.
-- El consumo de cada coche se obtiene de los datos introducidos al **dar de alta el coche** en el perfil.
+- Al elegir un coche del perfil, su consumo y precio quedan internos (no se muestran); el nº de ocupantes no puede superar sus plazas.
+- Cada coche puede tener distinto precio de combustible (cada uno reposta donde quiere).
 
 ### Ida y vuelta
 
@@ -79,41 +78,39 @@ La persistencia local debe quedar detrás de un pequeño adaptador propio (`stor
 
 ### Cálculo de distancia
 
-- La distancia se calcula mediante una **API externa** (ver recomendación técnica en sección 9): OpenRouteService.
-- Esto implica que el Modo Free **no es 100% sin conexión** — necesita internet para este paso.
-- **Recomendación**: incluir un campo de introducción manual de km como alternativa, para que el cálculo nunca quede bloqueado si falla la llamada a la API por falta de conexión.
+- La distancia se calcula con **OpenRouteService** (`driving-car/geojson`): al elegir origen y destino de las sugerencias, los km se rellenan solos y se dibuja la ruta en el mapa.
+- Las llamadas van por proxy propio (`/api/geocode`, `/api/ruta`) para evitar el CORS y no exponer la key en el navegador.
+- El plan gratuito de ORS tiene cuota diaria y puede fallar: ante un fallo, la app avisa una vez y deja de intentarlo en la sesión.
+- El campo manual de km es siempre la alternativa: el cálculo nunca queda bloqueado.
 
 ### Resultado final
 
-- Debe ser **vistoso y claro**, pensado para hacerle una captura de pantalla y compartirlo por WhatsApp: cada pasajero debe poder ver de un vistazo cuánto le debe pagar al conductor.
-- Ideas para mejorar el compartir:
-  - Diseñar el resultado como una tarjeta tipo "recibo" (formato vertical, pensado para captura en móvil): ruta, fecha, ida/vuelta, conductor destacado, una fila por pasajero con su importe, y el logo de MiConvoy al pie.
-  - Añadir un botón de compartir directo usando la **Web Share API** (`navigator.share`) junto con una librería tipo `html-to-image` para generar un PNG de la tarjeta y compartirlo sin necesidad de captura manual (funciona en Android y en iOS 16.4+).
-  - Botón secundario de "Copiar como texto" para quien prefiera pegar el resumen en el chat en vez de compartir una imagen.
+- Tarjeta tipo "recibo" (vertical, para captura en móvil): ruta, fecha, ida/vuelta, km (x2 si ida y vuelta), nº de personas y, por coche, conductor, coche e importe por persona, con el nombre de MiConvoy al pie. Se puede quitar la propina para ver el bruto exacto.
+- Botón de compartir con la **Web Share API** (`navigator.share`) y el mismo texto del ticket (el "copiar como texto" está pausado de momento).
+- Pendiente: generar PNG con `html-to-image`.
 
 ## 5. Fórmula de cálculo
 
 ```
-costePorKm = (consumo / 100) * precioPorLitro   // consumo en L/100km, precioPorLitro en €/L
+costePorKm = (consumo / 100) * precioPorLitro   // consumo en L/100km, precioPorLitro en €/L (por coche)
 costeCombustible = distanciaKm * costePorKm
 costeCombustible = costeCombustible * 2                 // si "ida y vuelta" está marcado
 
-gastosAdicionales = suma de los importes introducidos (peajes, aparcamiento, etc.)
+gastosAdicionales = suma de los importes introducidos (en convoy, a partes iguales por coche)
 costeTotal = costeCombustible + gastosAdicionales
 
-costePorPersona = costeTotal / nParticipantes
-// nParticipantes: puede incluir o no al conductor en el reparto.
-// Si NO se incluye al conductor, el resto de ocupantes le compensan
-// (le "pagan la gasolina") como pago por conducir y poner su coche.
+nParticipantes = ocupantes totales (N) si el conductor paga su parte;
+                 N-1 si va invitado (solo pagan los pasajeros no conductores)
 
 precioFinal = Math.ceil(costePorPersona / 0.5) * 0.5
-// Redondeo al alza en grupos de 0,50 €, para dejar un pequeño extra al conductor.
+// Propina para el conductor: redondeo al alza en grupos de 0,50 €.
+// Se puede quitar en el recibo para ver el bruto exacto.
 // Ejemplos: 3,7 € → 4 €   |   3,2 € → 3,5 €
 ```
 
 > ⚠️ Corrección respecto a una versión anterior de este documento: la fórmula estaba escrita como `km * (precioCombustible / km)`, que matemáticamente se anula y deja fuera el consumo del coche. La versión correcta usa el **consumo** (L/100km, del perfil del coche) junto con el **precio por litro** para calcular el coste por kilómetro — así el campo de consumo que se guarda al dar de alta un coche sí interviene en el cálculo, como estaba previsto.
 >
-> Un **convoy** se calcula coche por coche: cada uno con su propio consumo y sus propios pasajeros, no como un único reparto conjunto.
+> Un **convoy** se calcula coche por coche: cada uno con su propio consumo, precio y pasajeros, no como un único reparto conjunto.
 >
 > El historial guarda el **resultado ya calculado**, no solo los datos de entrada. Si en el futuro cambia la fórmula, los cálculos antiguos no se recalculan ni cambian: reflejan lo que se calculó en su momento.
 
@@ -121,28 +118,27 @@ precioFinal = Math.ceil(costePorPersona / 0.5) * 0.5
 
 ### Mini-perfil de persona
 
-- Nombre y correo (Gmail).
+- Nombre y correo (Gmail), con login real de Google o formulario local.
 - Si tiene coche o no.
-- Si tiene coche: marca, modelo, matrícula y consumo. Si dos personas comparten un mismo coche físico, cada una lo da de alta en su propio perfil (se duplica el registro, no se comparte una única referencia).
-- Se guarda en el navegador (almacenamiento local del dispositivo).
+- Si tiene coche: marca, modelo, matrícula, consumo, precio del combustible, tipo (diésel/gasolina/eléctrico) y plazas. Si dos personas comparten un mismo coche físico, cada una lo da de alta en su propio perfil (se duplica el registro, no se comparte una única referencia).
+- Se guarda en el navegador (almacenamiento local del dispositivo). La página de perfil tiene apartados de Coches, Historial y Cuenta (con sincronización y librerías).
 
 ### Historial de cálculos
 
-- Guarda el resultado completo mostrado por la calculadora para cada viaje calculado.
+- Guarda el resultado completo (con desglose por coche) solo al pulsar **"Finalizar viaje"**; calcular sin finalizar no guarda nada.
+- Se puede activar/desactivar desde el perfil; vive en su apartado, con su lista y botón de vaciado.
 - **Límite**: máximo 10 viajes guardados para empezar (ajustable más adelante); al superar el límite se descarta el más antiguo.
-- **Enfoque técnico**: `localStorage` con una única clave (p. ej. `miconvoy_historial`) que contiene un array JSON con los registros, usando nombres de campo cortos. Con un máximo de 10 registros, `localStorage` es más que suficiente — no hace falta IndexedDB ni SQLite para este volumen, ni siquiera en la futura app nativa.
-- Debe existir un botón para **vaciar el historial**.
+- **Enfoque técnico**: `localStorage` con claves `miconvoy_historial`, `miconvoy_historial_activo`, `miconvoy_historial_subido`, etc. Con un máximo de 10 registros, `localStorage` es más que suficiente — no hace falta IndexedDB ni SQLite para este volumen, ni siquiera en la futura app nativa.
 - Debe mostrarse un aviso claro (no necesariamente un banner de cookies intrusivo) de que, si se borra la caché o los datos de navegación, esta información se perderá.
-- Los datos locales son siempre la fuente utilizable, esté o no el servidor activo. La sincronización con el servidor es una acción manual (botón "Sincronizar datos"), nunca automática en segundo plano.
+- Los datos locales son siempre la fuente utilizable, esté o no el servidor activo. La sincronización con el servidor es una acción manual, nunca automática en segundo plano.
 
 ## 7. Autenticación y cuentas
 
-- **Identificador único**: el correo (Gmail) se usa como clave primaria tanto en local como en servidor, para poder enlazar el perfil local con la cuenta del servidor sin conflictos.
-- **Solo Modo Free activo**: el "login" es simplemente introducir gmail + nombre (identificación local, sin verificación real).
-- **Servidor activo**: en el apartado de perfil aparece un aviso para crear una contraseña, con el fin de proteger el historial si otra persona intenta entrar con el mismo gmail en otro dispositivo.
-  - _A valorar_: usar directamente el inicio de sesión real de Google (Google Identity Services, funciona en cliente sin necesidad de servidor propio) desde el propio Modo Free, en lugar de un campo de texto libre para el gmail. Al ser una autenticación real, nadie podría "escribir" el correo de otra persona para suplantarla, lo que eliminaría la necesidad del paso posterior de crear contraseña. Queda como decisión pendiente de confirmar.
-- **Subida de datos**: si el servidor está operativo, al entrar al apartado de perfil en Modo Free aparece un botón de "Subir perfil e historial" para sincronizar con la cuenta del servidor.
-- **Crear un viaje** en Modo Free no requiere cuenta. En Modo Online, sí hace falta cuenta para crear un convoy con enlace de invitación (para poder identificar quién es quién).
+- **Identificador único**: el correo (Gmail) se usa como clave primaria tanto en local como en servidor (`upsert` por email), para poder enlazar el perfil local con la cuenta del servidor sin conflictos.
+- **Login**: Google Identity Services real desde el Modo Free (resuelto en cliente, sin servidor) + formulario local de gmail + nombre como alternativa. La decisión de usar Google real quedó confirmada.
+- **Contraseña provisional**: se puede crear en el perfil (mínimo 8, con medidor de fuerza); se guarda en hash SHA-256 solo en el dispositivo y se sube al campo `password` al sincronizar. El registro real con servidor queda para NextAuth.
+- **Sincronización**: el apartado Sincronización compara contra el servidor (usuario, coches por matrícula, viajes por id de cliente) y el botón se activa solo si hay diferencias; si no, queda desactivado. Sube perfil + viajes pendientes sin duplicar; los coches borrados en local se borran en servidor (los viajes, nunca).
+- **Crear un viaje** en Modo Free no requiere cuenta. En Modo Online, sí hará falta cuenta para crear un convoy con enlace de invitación (para poder identificar quién es quién).
 
 ## 8. Modo Online (futuro, al activar el servidor)
 
@@ -186,13 +182,15 @@ precioFinal = Math.ceil(costePorPersona / 0.5) * 0.5
 | Mapa del convoy                       | Leaflet + OpenStreetMap, o MapLibre GL JS                      | Gratuitos, sin cuota de facturación, funcionan igual en WebView de Capacitor        |
 | Cálculo de distancia/ruta (Modo Free) | OpenRouteService                                               | API key gratuita, cuota diaria generosa; evita los costes de Google Distance Matrix |
 
+Las llamadas a ORS van por proxy propio (`/api/geocode`, `/api/ruta`) para evitar el CORS y no exponer la key. El plan gratuito tiene cuota: ante un fallo, la app avisa una vez y sigue en manual.
+
 ## 10. Disponibilidad del servidor (on/off)
 
-La app debe funcionar igual de bien tanto si el servidor está desplegado como si no (su disponibilidad puede variar a lo largo del año según se pague o no el hosting):
+La app funciona igual de bien tanto si el servidor está desplegado como si no:
 
-- Una variable de configuración indica si el servidor está activo o no. Para empezar se deja en `false`, de forma que al desplegar en Netlify la parte online no se muestra ni intenta conectarse a nada.
-- Además de esa variable, conviene añadir una comprobación en tiempo real (una llamada de "salud" al backend) para que, si el servidor está marcado como activo pero no responde en un momento dado, la app degrade igualmente a Modo Free sin errores.
-- Los datos locales siguen siendo siempre la fuente utilizable; cuando el servidor está disponible, un botón de "Sincronizar datos" sube/actualiza el perfil e historial contra el servidor.
+- Una única variable lo decide todo: `SERVER_ON=true/false` en `.env`. Para el despliegue inicial se deja en `false`. El cliente nunca la lee directamente: pregunta a `GET /api/salud`.
+- El endpoint combina la variable con un ping a la BBDD: si el servidor está marcado como activo pero no responde, la app degrada igualmente a Modo Free sin errores (hook `useEstadoServidor`, usado en `/online` y en Cuenta).
+- Los datos locales siguen siendo siempre la fuente utilizable; cuando el servidor está disponible, el apartado Sincronización sube/actualiza el perfil e historial contra el servidor.
 
 ## 11. Desarrollo local: Docker y base de datos
 
@@ -210,28 +208,21 @@ La app debe funcionar igual de bien tanto si el servidor está desplegado como s
 
 ## 13. Modelo de datos (esquema)
 
-- **`calculator.ts`** (`packages/calculator`): función pura `calcularCoche` con la fórmula de la sección 5, sin dependencias de Next.js, Prisma ni `localStorage`. Se importa igual desde el cliente (Modo Free) que desde un router de tRPC (Modo Online). Un convoy es `calcularConvoy`, que llama a `calcularCoche` una vez por cada coche.
+- **`src/calculadora.ts`**: función pura `calcularCoche` con la fórmula de la sección 5, sin dependencias de Next.js, Prisma ni `localStorage`. Se importa desde el cliente (Modo Free) y se reutilizará desde el servidor (Modo Online). Un convoy es `calcularConvoy`, que llama a `calcularCoche` una vez por cada coche.
 
-- **Autenticación**: Google Identity Services (login real de Google) desde el principio, tanto en Modo Free (resuelto en el cliente, sin servidor) como en Modo Online (NextAuth + proveedor Google). El correo es el identificador natural que enlaza el perfil local con la cuenta del servidor.
-- **Modo Free** (sin base de datos, todo en `localStorage`): tipos definidos en `types-modo-free.ts` — `PerfilLocal`, `CocheLocal`, `HistorialEntry` (con el resultado ya calculado, como snapshot inmutable).
-- **Modo Online** (con base de datos): esquema completo en `schema.prisma` — `User`/`Account`/`Session` (tablas estándar de NextAuth), `Coche`, `Viaje`, `CocheDelViaje`, `Pasajero`, `GastoAdicional`.
-- Los tipos locales están pensados para mapear 1:1 con el esquema del servidor, de forma que sincronizar (botón "Subir perfil e historial") sea un mapeo directo:
-  - `HistorialEntry` → `Viaje` (con `modoOrigen: "free"`)
-  - `CocheDelViajeLocal` → `CocheDelViaje` (usando `numeroPasajerosLibre`, ya que en Modo Free los pasajeros no están identificados uno a uno)
-- El campo `resultado` de `Viaje` (tipo `Json`) guarda el cálculo ya hecho, igual que `HistorialEntry.resultado` en local: si la fórmula cambia en el futuro, estos registros no se recalculan.
-- La restricción de "un pasajero solo en un coche a la vez" se implementa como índice único `(viajeId, personaId)` en `Pasajero`. El límite de 5 pasajeros por coche se valida en la lógica de negocio, no en el esquema.
+- **Autenticación**: Google Identity Services (login real de Google) desde el principio en Modo Free; NextAuth + proveedor Google pendiente para el Modo Online. El correo es el identificador natural que enlaza el perfil local con la cuenta del servidor.
+- **Modo Free** (sin base de datos, todo en `localStorage`): tipos en `src/storage/tiposModoGratis.ts` — `PerfilLocal` (con `tieneCoche`), `CocheLocal` (consumo, precio, tipo, plazas), `EntradaHistorial` (con resultado + `detallePorCoche` como snapshot inmutable, más `origen`/`destino`).
+- **Modo Online** (con base de datos): esquema en `schema.prisma` — `User`/`Account`/`Session` (+ `password` provisional), `Coche` (con precio, tipo, plazas), `Viaje` (con `modoOrigen`, `origenClienteId` único), `CocheDelViaje`, `Pasajero`, `GastoAdicional`.
+- La sincronización (`POST /api/sincronizar`, con comparación previa en `POST /api/estado-sincronizacion`) mapea:
+  - `PerfilLocal` → `User` (upsert por email, con hash a `password`)
+  - `CocheLocal` → `Coche` (emparejado por matrícula; borra los eliminados en local)
+  - `EntradaHistorial` → `Viaje` (con `modoOrigen: "gratis"` y `origenClienteId` para no duplicar)
+- El campo `resultado` de `Viaje` (tipo `Json`) guarda el cálculo ya hecho: si la fórmula cambia en el futuro, estos registros no se recalculan.
+- La restricción de "un pasajero solo en un coche a la vez" se implementa como índice único `(viajeId, personaId)` en `Pasajero`. El límite de 5 pasajeros por coche se valida en la lógica de negocio, no en el esquema (en Modo Free el tope lo marcan las plazas del coche).
 
 ## 14. Pendiente / próximos pasos
 
-- [ ] Elegir proveedor definitivo de base de datos, tiempo real y hosting del servidor.
-- [ ] Definir el detalle del "health check" de disponibilidad del servidor.
-- [ ] Diseñar el adaptador de storage y la lógica de sincronización que mapea `HistorialEntry` a `Viaje`.
-- [ ] Maquetar el flujo de pantallas paso a paso del Modo Free.
-
-miguelturra → ciudad real
-2/10/2026 · Ida y vuelta · 5 km · 4 personas
-Hugo Sánchez
-Skoda Octavia TDI 1.9
-1,00 €
-por persona
-MiConvoy
+- [ ] Elegir proveedor definitivo de base de datos gestionada, tiempo real y hosting del servidor.
+- [ ] NextAuth con Google + routers tRPC que reutilicen `calculadora.ts` (issues 8.2 y 8.3).
+- [ ] Funcionalidades online: crear viaje con enlace, unirse, mapa en tiempo real (issues 5.2–5.6).
+- [ ] Compartir el recibo como PNG + PWA instalable (issues 2.14 y 10.2).

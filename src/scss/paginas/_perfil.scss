@@ -62,23 +62,6 @@
   font-size: 0.9rem;
 }
 
-.paginaPerfil__botonGoogle {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.6rem;
-  border: 1px solid $colorBorde;
-  border-radius: $radioBorde;
-  background-color: $colorTarjeta;
-  padding: 0.6rem 1rem;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.paginaPerfil__iconoGoogle {
-  font-size: 1.1rem;
-}
-
 .paginaPerfil__cochesCabecera {
   display: flex;
   align-items: center;
@@ -153,15 +136,6 @@
   padding: 0.6rem 0.75rem;
   min-height: 2.75rem;
   cursor: pointer;
-}
-
-.paginaPerfil__zonaServidor,
-.paginaPerfil__zonaPeligro {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  border-top: 1px solid $colorBorde;
-  padding-top: $espaciadoBase;
 }
 
 .paginaPerfil__nav {

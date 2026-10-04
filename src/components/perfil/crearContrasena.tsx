@@ -35,6 +35,42 @@ interface PropiedadesCrearContrasena {
   alGuardar: (hash: string) => void;
 }
 
+function CampoConOjo({
+  etiqueta,
+  valor,
+  alCambiar,
+}: {
+  etiqueta: string;
+  valor: string;
+  alCambiar: (valor: string) => void;
+}) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <label className="formulario__campo">
+      <span className="formulario__etiqueta">{etiqueta}</span>
+      <div className="contrasena__conOjo">
+        <input
+          className="formulario__entrada"
+          type={visible ? "text" : "password"}
+          value={valor}
+          onChange={(e) => alCambiar(e.target.value)}
+          autoComplete="new-password"
+          required
+        />
+        <button
+          type="button"
+          className="contrasena__ojo"
+          onClick={() => setVisible((v) => !v)}
+          aria-label={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+          aria-pressed={visible}
+        >
+          <FontAwesomeIcon icon={visible ? faEyeSlash : faEye} />
+        </button>
+      </div>
+    </label>
+  );
+}
+
 export function CrearContrasena({
   abierto,
   existePrevia,
@@ -43,8 +79,6 @@ export function CrearContrasena({
 }: PropiedadesCrearContrasena) {
   const [clave, setClave] = useState("");
   const [repetir, setRepetir] = useState("");
-  const [mostrarClave, setMostrarClave] = useState(false);
-  const [mostrarRepetir, setMostrarRepetir] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [guardando, setGuardando] = useState(false);
 
@@ -88,56 +122,22 @@ export function CrearContrasena({
       titulo={existePrevia ? "Cambiar contraseña" : "Crear contraseña"}
     >
       <form className="formulario" onSubmit={alEnviar}>
-        <label className="formulario__campo">
-          <span className="formulario__etiqueta">Contraseña (mín. 8 caracteres)</span>
-          <div className="contrasena__conOjo">
-            <input
-              className="formulario__entrada"
-              type={mostrarClave ? "text" : "password"}
-              value={clave}
-              onChange={(e) => {
-                setClave(e.target.value);
-                setError(null);
-              }}
-              autoComplete="new-password"
-              required
-            />
-            <button
-              type="button"
-              className="contrasena__ojo"
-              onClick={() => setMostrarClave((v) => !v)}
-              aria-label={mostrarClave ? "Ocultar contraseña" : "Mostrar contraseña"}
-              aria-pressed={mostrarClave}
-            >
-              <FontAwesomeIcon icon={mostrarClave ? faEyeSlash : faEye} />
-            </button>
-          </div>
-        </label>
-        <label className="formulario__campo">
-          <span className="formulario__etiqueta">Repetir contraseña</span>
-          <div className="contrasena__conOjo">
-            <input
-              className="formulario__entrada"
-              type={mostrarRepetir ? "text" : "password"}
-              value={repetir}
-              onChange={(e) => {
-                setRepetir(e.target.value);
-                setError(null);
-              }}
-              autoComplete="new-password"
-              required
-            />
-            <button
-              type="button"
-              className="contrasena__ojo"
-              onClick={() => setMostrarRepetir((v) => !v)}
-              aria-label={mostrarRepetir ? "Ocultar contraseña" : "Mostrar contraseña"}
-              aria-pressed={mostrarRepetir}
-            >
-              <FontAwesomeIcon icon={mostrarRepetir ? faEyeSlash : faEye} />
-            </button>
-          </div>
-        </label>
+        <CampoConOjo
+          etiqueta="Contraseña (mín. 8 caracteres)"
+          valor={clave}
+          alCambiar={(valor) => {
+            setClave(valor);
+            setError(null);
+          }}
+        />
+        <CampoConOjo
+          etiqueta="Repetir contraseña"
+          valor={repetir}
+          alCambiar={(valor) => {
+            setRepetir(valor);
+            setError(null);
+          }}
+        />
         {fuerza.puntos > 0 && (
           <div>
             <div className="contrasena__fuerza" aria-label={`Fuerza: ${fuerza.etiqueta}`}>

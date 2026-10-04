@@ -1,11 +1,9 @@
-"use client";
-
 export function LibreriasPerfil() {
   return (
-    <section aria-label="Librerías" className="paginaPerfil__apartado">
-      <h3 className="paginaPerfil__subtitulo">Librerías</h3>
+    <section aria-label="Tecnologías" className="paginaPerfil__apartado">
+      <h3 className="paginaPerfil__subtitulo">Tecnologías</h3>
       <p className="textoSuave paginaPerfil__nota">
-        Esta app usa las siguientes librerías y servicios, con sus licencias:
+        Esta app usa las siguientes tecnologías y servicios, con sus licencias:
       </p>
       <ul className="paginaPerfil__legalLista">
         <li>

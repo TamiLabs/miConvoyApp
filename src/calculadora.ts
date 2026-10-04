@@ -6,12 +6,12 @@
 // es directamente testeable sin levantar nada.
 
 export interface DatosCalculoCoche {
-  consumo: number; // L/100km — viene del perfil del coche (CocheLocal.consumo / Coche.consumo)
+  consumo: number; // L/100km — del perfil del coche o manual
   distanciaKm: number; // compartida por todo el viaje
-  precioPorLitro: number; // precio del combustible, reutilizado de la última vez introducido
+  precioPorLitro: number; // €/L — del perfil del coche o manual (por coche)
   idaYVuelta: boolean;
   gastosAdicionales: { nombre: string; importe: number }[];
-  numeroPasajeros: number; // recuento (Modo Gratis) o pasajeros.length (Modo Online)
+  numeroPasajeros: number; // pasajeros sin contar al conductor
   incluirConductorEnReparto: boolean;
 }
 
@@ -32,12 +32,14 @@ export function calcularCoche(datos: DatosCalculoCoche): ResultadoCalculo {
 
   const costeTotal = costeCombustible + gastos;
 
-  const numeroParticipantes = datos.incluirConductorEnReparto
-    ? datos.numeroPasajeros + 1
-    : datos.numeroPasajeros;
+  // Nunca se divide entre 0: sin participantes de pago, cada uno paga 0.
+  const numeroParticipantes = Math.max(
+    1,
+    datos.incluirConductorEnReparto ? datos.numeroPasajeros + 1 : datos.numeroPasajeros,
+  );
 
   const costeBruto = costeTotal / numeroParticipantes;
-  const costePorPersona = Math.ceil(costeBruto / 0.5) * 0.5; // redondeo al alza en grupos de 0,50 €
+  const costePorPersona = Math.ceil(costeBruto / 0.5) * 0.5; // propina: redondeo al alza en grupos de 0,50 €
 
   return { costeCombustible, costeTotal, costePorPersona };
 }

@@ -161,12 +161,13 @@ export function SincronizacionPerfil({
     <section aria-label="Sincronización" className="paginaPerfil__apartado">
       <h3 className="paginaPerfil__subtitulo">Sincronización</h3>
       {cargando || comprobando ? (
-        <p className="textoSuave">Comprobando diferencias con el servidor…</p>
+        <p className="textoSuave">
+          {" "}
+          <FontAwesomeIcon icon={faCircleNotch} spin /> Comprobando diferencias con el servidor…
+        </p>
       ) : !disponible ? (
         <>
-          <p className="textoSuave">
-            {motivo ? ` ${motivo}` : ""}
-          </p>
+          <p className="textoSuave">{motivo ? ` ${motivo}` : ""}</p>
           {servidorOn && (
             <>
               <p className="aviso">

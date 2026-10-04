@@ -13,3 +13,22 @@ export function formatearFechaHora(fechaIso: string): string {
     minute: "2-digit",
   });
 }
+
+export function formatearFecha(fechaIso: string): string {
+  return new Date(fechaIso).toLocaleDateString("es-ES");
+}
+
+// "Mi posición (38.97, -3.89)" → "Mi posición". El resto se deja igual.
+export function nombreCortoLugar(texto: string): string {
+  const limpio = texto.trim();
+  return /^mi posición\b/i.test(limpio) ? "Mi posición" : limpio;
+}
+
+export function nombreCortoRuta(origen?: string, destino?: string): string {
+  return (
+    [origen, destino]
+      .map((punto) => (punto ? nombreCortoLugar(punto) : ""))
+      .filter(Boolean)
+      .join(" → ") || "Viaje"
+  );
+}

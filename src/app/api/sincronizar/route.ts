@@ -29,114 +29,116 @@ export async function POST(peticion: NextRequest) {
   if (!cuerpo.perfil?.correo || !cuerpo.perfil?.nombre) {
     return NextResponse.json({ ok: false, error: "Falta el perfil." }, { status: 400 });
   }
+  // Const local para que el narrowing sobreviva dentro de la transacción.
+  const perfil = cuerpo.perfil;
 
   try {
-    const usuario = await baseDatos.user.upsert({
-      where: { email: cuerpo.perfil.correo },
-      update: {
-        name: cuerpo.perfil.nombre,
-        image: cuerpo.perfil.foto ?? null,
-        ...(cuerpo.hashContrasena ? { password: cuerpo.hashContrasena } : {}),
-      },
-      create: {
-        email: cuerpo.perfil.correo,
-        name: cuerpo.perfil.nombre,
-        image: cuerpo.perfil.foto ?? null,
-        password: cuerpo.hashContrasena ?? null,
-      },
-    });
-
-    // Coches: se emparejan por matrícula del mismo propietario (sin duplicados)
-    // y se borran los que ya no están en local.
-    const matriculasLocales = new Set(
-      cuerpo.perfil.coches.map((coche) => coche.matricula.trim().toUpperCase()),
-    );
-    for (const coche of cuerpo.perfil.coches) {
-      const datos = {
-        marca: coche.marca,
-        modelo: coche.modelo,
-        consumo: coche.consumo,
-        precio: coche.precioPorLitro ?? 0,
-        tipoCombustible: coche.tipoCombustible ?? "gasolina",
-        plazas: coche.plazas ?? 5,
-      };
-      const existente: Pick<Coche, "id"> | null = await baseDatos.coche.findFirst({
-        where: { propietarioId: usuario.id, matricula: coche.matricula },
-        select: { id: true },
-      });
-      if (existente) {
-        await baseDatos.coche.update({ where: { id: existente.id }, data: datos });
-      } else {
-        await baseDatos.coche.create({
-          data: { ...datos, matricula: coche.matricula, propietarioId: usuario.id },
-        });
-      }
-    }
-    const cochesServidor = await baseDatos.coche.findMany({
-      where: { propietarioId: usuario.id },
-      select: { id: true, matricula: true },
-    });
-    const borrados = cochesServidor.filter(
-      (c) => !matriculasLocales.has(c.matricula.trim().toUpperCase()),
-    );
-    let cochesBorrados = 0;
-    for (const coche of borrados) {
-      await baseDatos.coche.delete({ where: { id: coche.id } });
-      cochesBorrados++;
-    }
-
-    let viajesSubidos = 0;
-    let viajesOmitidos = 0;
-    for (const entrada of cuerpo.historial ?? []) {
-      // Idempotente: si ya existe por origenClienteId, no se duplica.
-      const existente = await baseDatos.viaje.findUnique({
-        where: { origenClienteId: entrada.id },
-        select: { id: true },
-      });
-      if (existente) {
-        viajesOmitidos++;
-        continue;
-      }
-      await baseDatos.viaje.create({
-        data: {
-          origen: entrada.origen?.trim() || "—",
-          destino: entrada.destino?.trim() || "—",
-          fecha: new Date(entrada.fecha),
-          idaYVuelta: entrada.idaYVuelta,
-          distanciaKm: entrada.distanciaKm,
-          precioCombustible: entrada.precioCombustible,
-          modoOrigen: "gratis",
-          origenClienteId: entrada.id,
-          organizadorId: usuario.id,
-          resultado: {
-            ...entrada.resultado,
-            detallePorCoche: entrada.detallePorCoche ?? [],
-          } as unknown as Prisma.InputJsonValue,
-          coches: {
-            create: entrada.coches.map((c) => ({
-              conductorNombre: c.nombreConductor,
-              incluirConductorEnReparto: c.incluirConductorEnReparto,
-              numeroPasajerosLibre: c.numeroPasajeros,
-            })),
-          },
-          gastos: {
-            create: entrada.gastosAdicionales.map((g) => ({
-              nombre: g.nombre,
-              importe: g.importe,
-            })),
-          },
+    // Todo o nada: si algo falla a mitad, se revierte lo ya escrito.
+    const resultado = await baseDatos.$transaction(async (tx) => {
+      const usuario = await tx.user.upsert({
+        where: { email: perfil.correo },
+        update: {
+          name: perfil.nombre,
+          image: perfil.foto ?? null,
+          ...(cuerpo.hashContrasena ? { password: cuerpo.hashContrasena } : {}),
+        },
+        create: {
+          email: perfil.correo,
+          name: perfil.nombre,
+          image: perfil.foto ?? null,
+          password: cuerpo.hashContrasena ?? null,
         },
       });
-      viajesSubidos++;
-    }
 
-    return NextResponse.json({
-      ok: true,
-      viajesSubidos,
-      viajesOmitidos,
-      cochesSubidos: cuerpo.perfil.coches.length,
-      cochesBorrados,
+      // Coches: se emparejan por matrícula del mismo propietario (sin duplicados)
+      // y se borran los que ya no están en local. La matrícula se normaliza
+      // (mayúsculas, sin espacios) igual que al comparar.
+      const matriculasLocales = new Set(
+        perfil.coches.map((coche) => coche.matricula.trim().toUpperCase()),
+      );
+      for (const coche of perfil.coches) {
+        const matricula = coche.matricula.trim().toUpperCase();
+        const datos = {
+          marca: coche.marca,
+          modelo: coche.modelo,
+          consumo: coche.consumo,
+          precio: coche.precioPorLitro ?? 0,
+          tipoCombustible: coche.tipoCombustible ?? "gasolina",
+          plazas: coche.plazas ?? 5,
+        };
+        const existente: Pick<Coche, "id"> | null = await tx.coche.findFirst({
+          where: { propietarioId: usuario.id, matricula },
+          select: { id: true },
+        });
+        if (existente) {
+          await tx.coche.update({ where: { id: existente.id }, data: datos });
+        } else {
+          await tx.coche.create({
+            data: { ...datos, matricula, propietarioId: usuario.id },
+          });
+        }
+      }
+      const cochesServidor = await tx.coche.findMany({
+        where: { propietarioId: usuario.id },
+        select: { id: true, matricula: true },
+      });
+      const borrados = cochesServidor.filter(
+        (c) => !matriculasLocales.has(c.matricula.trim().toUpperCase()),
+      );
+      let cochesBorrados = 0;
+      for (const coche of borrados) {
+        await tx.coche.delete({ where: { id: coche.id } });
+        cochesBorrados++;
+      }
+
+      let viajesSubidos = 0;
+      let viajesOmitidos = 0;
+      for (const entrada of cuerpo.historial ?? []) {
+        // Idempotente: si ya existe por origenClienteId, no se duplica.
+        const existente = await tx.viaje.findUnique({
+          where: { origenClienteId: entrada.id },
+          select: { id: true },
+        });
+        if (existente) {
+          viajesOmitidos++;
+          continue;
+        }
+        await tx.viaje.create({
+          data: {
+            origen: entrada.origen?.trim() || "—",
+            destino: entrada.destino?.trim() || "—",
+            fecha: new Date(entrada.fecha),
+            idaYVuelta: entrada.idaYVuelta,
+            distanciaKm: entrada.distanciaKm,
+            precioCombustible: entrada.precioCombustible,
+            modoOrigen: "gratis",
+            origenClienteId: entrada.id,
+            organizadorId: usuario.id,
+            resultado: {
+              ...entrada.resultado,
+              detallePorCoche: entrada.detallePorCoche ?? [],
+            } as unknown as Prisma.InputJsonValue,
+            coches: {
+              create: entrada.coches.map((c) => ({
+                conductorNombre: c.nombreConductor,
+                incluirConductorEnReparto: c.incluirConductorEnReparto,
+                numeroPasajerosLibre: c.numeroPasajeros,
+              })),
+            },
+            gastos: {
+              create: entrada.gastosAdicionales.map((g) => ({
+                nombre: g.nombre,
+                importe: g.importe,
+              })),
+            },
+          },
+        });
+        viajesSubidos++;
+      }
+
+      return { viajesSubidos, viajesOmitidos, cochesSubidos: perfil.coches.length, cochesBorrados };
     });
+    return NextResponse.json({ ok: true, ...resultado });
   } catch {
     return NextResponse.json(
       { ok: false, error: "No se pudo guardar en el servidor." },

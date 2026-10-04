@@ -48,7 +48,7 @@ export interface CocheDelViajeLocal {
 
 export interface ResultadoCalculo {
   costeTotal: number;
-  costePorPersona: number; // ya redondeado (grupos de 0,50 €)
+  costePorPersona: number; // con propina (redondeo al alza en grupos de 0,50 €)
 }
 
 export interface EntradaHistorial {
@@ -85,7 +85,6 @@ export interface UltimoViajeLocal {
   origen: string;
   destino: string;
   distanciaKm: number | null;
-  precioPorLitro: number | null; // compat: precio del primer coche (ahora va por coche)
   idaYVuelta: boolean;
   esConvoy: boolean;
   coches: CocheFormularioLocal[];

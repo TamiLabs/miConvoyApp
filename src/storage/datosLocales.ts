@@ -13,6 +13,8 @@ const CLAVE_HISTORIAL_ACTIVO = "miconvoy_historial_activo";
 const CLAVE_ULTIMO_CORREO = "miconvoy_ultimo_correo";
 const CLAVE_CREDENCIAL = "miconvoy_credencial";
 const CLAVE_HISTORIAL_SUBIDO = "miconvoy_historial_subido";
+const CLAVE_PASO_CALCULADORA = "miconvoy_paso_calculadora";
+const CLAVE_VERSION_PERFIL = "miconvoy_perfil_version";
 const MAXIMO_HISTORIAL = 10;
 
 export async function obtenerHistorial(
@@ -91,6 +93,45 @@ export async function guardarUltimoCorreo(
   correo: string,
 ): Promise<void> {
   await almacenamiento.guardar(CLAVE_ULTIMO_CORREO, correo);
+}
+
+// Paso actual de la calculadora, para retomarlo al volver de otra página.
+export async function obtenerPasoCalculadora(almacenamiento: Almacenamiento): Promise<number> {
+  const paso = await almacenamiento.obtener<number>(CLAVE_PASO_CALCULADORA);
+  return paso !== null && Number.isInteger(paso) && paso >= 0 && paso <= 3 ? paso : 0;
+}
+
+export async function guardarPasoCalculadora(
+  almacenamiento: Almacenamiento,
+  paso: number,
+): Promise<void> {
+  await almacenamiento.guardar(CLAVE_PASO_CALCULADORA, paso);
+}
+
+// Versión del esquema del perfil local. Al subirla, los perfiles antiguos se
+// migran una sola vez en vez de compararse por JSON en cada carga.
+export const VERSION_PERFIL = 2;
+
+// Rellena los campos que no existían en versiones anteriores. Pura y testeable.
+export function migrarPerfilLocal(guardado: PerfilLocal): PerfilLocal {
+  return {
+    ...guardado,
+    tieneCoche: guardado.tieneCoche ?? true,
+    coches: guardado.coches.map((coche) => ({
+      ...coche,
+      precioPorLitro: coche.precioPorLitro ?? 0,
+      tipoCombustible: coche.tipoCombustible ?? "gasolina",
+      plazas: coche.plazas ?? 5,
+    })),
+  };
+}
+
+export async function obtenerVersionPerfil(almacenamiento: Almacenamiento): Promise<number> {
+  return (await almacenamiento.obtener<number>(CLAVE_VERSION_PERFIL)) ?? 0;
+}
+
+export async function guardarVersionPerfil(almacenamiento: Almacenamiento): Promise<void> {
+  await almacenamiento.guardar(CLAVE_VERSION_PERFIL, VERSION_PERFIL);
 }
 
 // Hash local de la contraseña (provisional hasta el registro con servidor).
