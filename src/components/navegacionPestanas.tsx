@@ -14,19 +14,21 @@ export function NavegacionPestanas() {
 
   return (
     <nav className="navegacionPestanas">
-      {PESTANAS.map((pestana) => (
-        <Link
-          key={pestana.ruta}
-          href={pestana.ruta}
-          className={
-            rutaActual === pestana.ruta
-              ? "navegacionPestanas__enlace navegacionPestanas__enlace--activo"
-              : "navegacionPestanas__enlace"
-          }
-        >
-          {pestana.etiqueta}
-        </Link>
-      ))}
+      <div className="navegacionPestanas__contenido">
+        {PESTANAS.map((pestana) => (
+          <Link
+            key={pestana.ruta}
+            href={pestana.ruta}
+            className={
+              rutaActual === pestana.ruta
+                ? "navegacionPestanas__enlace navegacionPestanas__enlace--activo"
+                : "navegacionPestanas__enlace"
+            }
+          >
+            {pestana.etiqueta}
+          </Link>
+        ))}
+      </div>
     </nav>
   );
 }

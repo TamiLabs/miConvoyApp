@@ -1,7 +1,9 @@
 "use client";
 
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTrash } from "@fortawesome/free-solid-svg-icons";
 import type { EntradaHistorial } from "@/storage/tiposModoGratis";
-import { formatearEuros, formatearFechaHora } from "@/formato";
+import { formatearEuros, formatearFechaHora, nombreCortoRuta } from "@/formato";
 
 interface PropiedadesHistorialPerfil {
   historial: EntradaHistorial[];
@@ -39,14 +41,14 @@ export function HistorialPerfil({
           <div className="paginaPerfil__cochesCabecera">
             <p className="textoSuave">Viajes guardados ({historial.length}/10)</p>
             <button type="button" className="paginaPerfil__botonEliminar" onClick={alVaciar}>
-              Vaciar
+              <FontAwesomeIcon icon={faTrash} /> Vaciar
             </button>
           </div>
           <div className="paginaPerfil__coches">
             {historial.map((entrada) => (
               <article key={entrada.id} className="paginaPerfil__tarjetaCoche">
                 <p className="paginaPerfil__cocheTitulo">
-                  {[entrada.origen, entrada.destino].filter(Boolean).join(" → ") || "Viaje"}
+                  {nombreCortoRuta(entrada.origen, entrada.destino)}
                 </p>
                 <p className="textoSuave">
                   {formatearFechaHora(entrada.fecha)}
@@ -59,9 +61,6 @@ export function HistorialPerfil({
           </div>
         </>
       )}
-      <p className="textoSuave paginaPerfil__nota">
-        Se guarda solo en este dispositivo: si borras la caché, se pierde.
-      </p>
     </section>
   );
 }

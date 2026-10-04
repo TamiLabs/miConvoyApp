@@ -3,11 +3,14 @@
 @use "../constantes" as *;
 
 .navegacionPestanas {
+  border-bottom: 1px solid $colorBorde;
+  background-color: $colorTarjeta;
+}
+
+.navegacionPestanas__contenido {
   display: flex;
   gap: 1rem;
   padding: 1rem;
-  border-bottom: 1px solid $colorBorde;
-  background-color: $colorTarjeta;
 }
 
 .navegacionPestanas__enlace {

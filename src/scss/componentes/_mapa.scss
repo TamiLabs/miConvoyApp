@@ -9,6 +9,36 @@
   z-index: 0;
 }
 
+.mapaViaje__zoom {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.mapaViaje__zoomBoton {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: $radioBorde;
+  border: 1px solid $colorBorde;
+  background-color: $colorTarjeta;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mapaViaje__zoomBoton--mas {
+  // Estilos propios del +.
+}
+
+.mapaViaje__zoomBoton--menos {
+  // Estilos propios del −.
+}
+
 .campoDireccion {
   position: relative;
   display: flex;

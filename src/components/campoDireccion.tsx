@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   buscarDirecciones,
-  leerClaveORS,
+  estanCaidosLosMapas,
   type PuntoRuta,
   type SugerenciaDireccion,
 } from "@/mapas/openRouteService";
@@ -15,6 +15,7 @@ interface PropiedadesCampoDireccion {
   alCambiar: (texto: string) => void;
   alElegir: (punto: PuntoRuta) => void;
   botonExtra?: React.ReactNode;
+  resaltar?: boolean;
 }
 
 export function CampoDireccion({
@@ -24,15 +25,15 @@ export function CampoDireccion({
   alCambiar,
   alElegir,
   botonExtra,
+  resaltar = false,
 }: PropiedadesCampoDireccion) {
   const [sugerencias, setSugerencias] = useState<SugerenciaDireccion[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [abierta, setAbierta] = useState(false);
   const ultimoElegido = useRef("");
-  const hayClave = leerClaveORS() !== "";
 
   useEffect(() => {
-    if (!hayClave || !valor.trim() || valor === ultimoElegido.current) {
+    if (estanCaidosLosMapas() || !valor.trim() || valor === ultimoElegido.current) {
       setSugerencias([]);
       return;
     }
@@ -72,7 +73,7 @@ export function CampoDireccion({
       <span className="formulario__etiqueta">{etiqueta}</span>
       <div className="calculadora__conBoton">
         <input
-          className="formulario__entrada"
+          className={`formulario__entrada${resaltar ? " formulario__entrada--parpadeo" : ""}`}
           value={valor}
           onChange={(e) => alCambiar(e.target.value)}
           onFocus={() => {

@@ -15,10 +15,8 @@ $colorTextoSuave: #5b6472;
 
 $colorPrimario: #ff6b4a; // acento vivo — acciones principales, resultado
 $colorPrimarioOscuro: #e0532f; // hover / pulsado
-$colorPrimarioSuave: #ffe3d8; // fondos muy sutiles sobre el acento
 
 $colorSecundario: #1e3a5f; // azul carretera — marca, botón secundario, enlaces
-$colorSecundarioOscuro: #15293f;
 
 $colorBorde: #dce1e6;
 $colorTarjeta: #ffffff;
@@ -50,10 +48,6 @@ $fuenteBase:
 $radioBorde: 12px;
 $espaciadoBase: 1rem;
 $anchoMaximo: 480px;
-
-$movil: 480px;
-$tableta: 768px;
-$escritorio: 1024px;
 
 @mixin tarjeta {
   background-color: $colorTarjeta;

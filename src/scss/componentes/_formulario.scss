@@ -33,6 +33,28 @@
   font-size: 0.9rem;
 }
 
+.formulario__entrada:read-only {
+  background-color: $colorFondo;
+  cursor: default;
+}
+
+@keyframes atencionInput {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(0.98);
+  }
+}
+
+// Parpadea 2s (0,5s x4) y para: transform no mueve la vista.
+.formulario__entrada--parpadeo {
+  animation: atencionInput 0.5s ease-in-out 4;
+  border-color: #dc2626;
+}
+
 .formulario__acciones {
   display: flex;
   gap: 0.5rem;

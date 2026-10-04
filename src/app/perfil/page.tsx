@@ -2,18 +2,28 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCar, faClockRotateLeft, faCircleUser } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCar,
+  faCheck,
+  faClockRotateLeft,
+  faCircleUser,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { adaptadorAlmacenamientoLocal } from "@/storage/almacenamiento";
 import {
   eliminarPerfil,
   guardarHistorialActivo,
   guardarPerfil,
   guardarUltimoCorreo,
+  guardarVersionPerfil,
   limpiarHistorial,
+  migrarPerfilLocal,
   obtenerHistorial,
   obtenerHistorialActivo,
   obtenerPerfil,
   obtenerUltimoCorreo,
+  obtenerVersionPerfil,
+  VERSION_PERFIL,
 } from "@/storage/datosLocales";
 import type { CocheLocal, EntradaHistorial, PerfilLocal } from "@/storage/tiposModoGratis";
 import { VentanaEmergente } from "@/components/ventanaEmergente";
@@ -26,6 +36,8 @@ import { CrearPerfil, type DatosPerfilNuevo } from "@/components/crearPerfil";
 import { MisCoches } from "@/components/perfil/misCoches";
 import { HistorialPerfil } from "@/components/perfil/historialPerfil";
 import { CuentaPerfil } from "@/components/perfil/cuentaPerfil";
+import { SincronizacionPerfil } from "@/components/perfil/sincronizacionPerfil";
+import { LibreriasPerfil } from "@/components/perfil/libreriasPerfil";
 
 type ApartadoPerfil = "coches" | "historial" | "cuenta";
 
@@ -41,7 +53,6 @@ export default function PaginaPerfil() {
   const [apartado, setApartado] = useState<ApartadoPerfil>("coches");
   const [ventanaAbierta, setVentanaAbierta] = useState(false);
   const [cocheEnEdicion, setCocheEnEdicion] = useState<CocheLocal | null>(null);
-  const [mensajeServidor, setMensajeServidor] = useState<string | null>(null);
   const [historial, setHistorial] = useState<EntradaHistorial[]>([]);
   const [historialActivo, setHistorialActivo] = useState(true);
   const [ultimoCorreo, setUltimoCorreo] = useState("");
@@ -55,8 +66,17 @@ export default function PaginaPerfil() {
         obtenerHistorialActivo(adaptadorAlmacenamientoLocal),
         obtenerUltimoCorreo(adaptadorAlmacenamientoLocal),
       ]);
-      if (guardado && guardado.tieneCoche === undefined) {
-        setPerfil({ ...guardado, tieneCoche: true });
+      if (guardado) {
+        // Migra perfiles antiguos una sola vez (bandera de versión).
+        const version = await obtenerVersionPerfil(adaptadorAlmacenamientoLocal);
+        if (version < VERSION_PERFIL) {
+          const migrado = migrarPerfilLocal(guardado);
+          await guardarPerfil(adaptadorAlmacenamientoLocal, migrado);
+          await guardarVersionPerfil(adaptadorAlmacenamientoLocal);
+          setPerfil(migrado);
+        } else {
+          setPerfil(guardado);
+        }
       } else {
         setPerfil(guardado);
       }
@@ -83,6 +103,7 @@ export default function PaginaPerfil() {
       };
       await persistir(nuevo);
       await guardarUltimoCorreo(adaptadorAlmacenamientoLocal, datos.correo);
+      await guardarVersionPerfil(adaptadorAlmacenamientoLocal);
       setUltimoCorreo(datos.correo);
     },
     [persistir],
@@ -119,7 +140,6 @@ export default function PaginaPerfil() {
   const alEliminarCoche = useCallback(
     async (idCoche: string) => {
       if (!perfil) return;
-      if (!window.confirm("¿Eliminar este coche del perfil?")) return;
       await persistir({ ...perfil, coches: perfil.coches.filter((c) => c.id !== idCoche) });
     },
     [perfil, persistir],
@@ -134,8 +154,6 @@ export default function PaginaPerfil() {
   );
 
   const alOlvidarDispositivo = useCallback(async () => {
-    if (!window.confirm("¿Olvidar este dispositivo? Se borrará tu perfil, pero no el historial."))
-      return;
     await eliminarPerfil(adaptadorAlmacenamientoLocal);
     setPerfil(null);
   }, []);
@@ -146,14 +164,23 @@ export default function PaginaPerfil() {
   }, []);
 
   const alVaciarHistorial = useCallback(async () => {
-    if (!window.confirm("¿Vaciar todo el historial de este dispositivo?")) return;
     await limpiarHistorial(adaptadorAlmacenamientoLocal);
     setHistorial([]);
   }, []);
 
-  const alPulsarServidor = useCallback(() => {
-    setMensajeServidor("Disponible cuando se conecte el backend (ver issues 1.7 y 1.8).");
-  }, []);
+  const [confirmacion, setConfirmacion] = useState<{
+    titulo: string;
+    mensaje: string;
+    textoConfirmar: string;
+    alConfirmar: () => void;
+  } | null>(null);
+
+  const pedirConfirmacion = useCallback(
+    (titulo: string, mensaje: string, textoConfirmar: string, alConfirmar: () => void) => {
+      setConfirmacion({ titulo, mensaje, textoConfirmar, alConfirmar });
+    },
+    [],
+  );
 
   if (cargando) return <p className="paginaPerfil textoSuave">Cargando perfil…</p>;
   if (!perfil) {
@@ -215,7 +242,14 @@ export default function PaginaPerfil() {
           perfil={perfil}
           alAbrirAlta={abrirAlta}
           alAbrirEdicion={abrirEdicion}
-          alEliminarCoche={alEliminarCoche}
+          alEliminarCoche={(idCoche) =>
+            pedirConfirmacion(
+              "Eliminar coche",
+              "¿Eliminar este coche del perfil?",
+              "Eliminar",
+              () => alEliminarCoche(idCoche),
+            )
+          }
           alCambiarTieneCoche={alCambiarTieneCoche}
         />
       )}
@@ -224,16 +258,38 @@ export default function PaginaPerfil() {
           historial={historial}
           activo={historialActivo}
           alCambiarActivo={alCambiarHistorialActivo}
-          alVaciar={alVaciarHistorial}
+          alVaciar={() =>
+            pedirConfirmacion(
+              "Vaciar historial",
+              "¿Vaciar todo el historial de este dispositivo?",
+              "Vaciar",
+              () => alVaciarHistorial(),
+            )
+          }
         />
       )}
       {apartado === "cuenta" && (
-        <CuentaPerfil
-          ultimoCorreo={ultimoCorreo}
-          mensajeServidor={mensajeServidor}
-          alPulsarServidor={alPulsarServidor}
-          alOlvidar={alOlvidarDispositivo}
-        />
+        <>
+          <CuentaPerfil
+            ultimoCorreo={ultimoCorreo}
+            alOlvidar={() =>
+              pedirConfirmacion(
+                "Olvidar dispositivo",
+                "¿Olvidar este dispositivo? Se borrará tu perfil, pero no el historial.",
+                "Olvidar",
+                () => alOlvidarDispositivo(),
+              )
+            }
+          />
+          <hr className="paginaPerfil__separador" />
+          <SincronizacionPerfil
+            perfil={perfil}
+            historial={historial}
+            historialActivo={historialActivo}
+          />
+          <hr className="paginaPerfil__separador" />
+          <LibreriasPerfil />
+        </>
       )}
 
       <VentanaEmergente
@@ -255,6 +311,7 @@ export default function PaginaPerfil() {
                   consumo: cocheEnEdicion.consumo,
                   precioPorLitro: cocheEnEdicion.precioPorLitro ?? 0,
                   tipoCombustible: cocheEnEdicion.tipoCombustible ?? "gasolina",
+                  plazas: cocheEnEdicion.plazas ?? 5,
                 }
               : undefined
           }
@@ -265,6 +322,34 @@ export default function PaginaPerfil() {
             setCocheEnEdicion(null);
           }}
         />
+      </VentanaEmergente>
+
+      <VentanaEmergente
+        abierto={confirmacion !== null}
+        alCerrar={() => setConfirmacion(null)}
+        titulo={confirmacion?.titulo ?? "Confirmar"}
+      >
+        <p>{confirmacion?.mensaje}</p>
+        <div className="formulario__acciones">
+          <button
+            type="button"
+            className="formulario__botonSecundario"
+            onClick={() => setConfirmacion(null)}
+          >
+            <FontAwesomeIcon icon={faXmark} /> Cancelar
+          </button>
+          <button
+            type="button"
+            className="formulario__botonPrincipal"
+            onClick={() => {
+              const accion = confirmacion?.alConfirmar;
+              setConfirmacion(null);
+              accion?.();
+            }}
+          >
+            <FontAwesomeIcon icon={faCheck} /> {confirmacion?.textoConfirmar ?? "Confirmar"}
+          </button>
+        </div>
       </VentanaEmergente>
     </section>
   );

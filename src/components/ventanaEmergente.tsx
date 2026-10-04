@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 
 interface PropiedadesVentanaEmergente {
@@ -10,22 +10,52 @@ interface PropiedadesVentanaEmergente {
   children: React.ReactNode;
 }
 
+const SELECTOR_FOCO = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+// Ventanas abiertas ahora mismo: el scroll vuelve solo cuando se cierra la última.
+let ventanasAbiertas = 0;
+
 export function VentanaEmergente({
   abierto,
   alCerrar,
   titulo,
   children,
 }: PropiedadesVentanaEmergente) {
+  const referenciaContenido = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!abierto) return;
+    ventanasAbiertas++;
+    document.body.style.overflow = "hidden";
+    referenciaContenido.current
+      ?.querySelector<HTMLElement>(SELECTOR_FOCO)
+      ?.focus({ preventScroll: true });
+
     const alPulsarTecla = (evento: KeyboardEvent) => {
-      if (evento.key === "Escape") alCerrar();
+      if (evento.key === "Escape") {
+        alCerrar();
+        return;
+      }
+      if (evento.key !== "Tab") return;
+      const elementos = [
+        ...(referenciaContenido.current?.querySelectorAll<HTMLElement>(SELECTOR_FOCO) ?? []),
+      ].filter((el) => !el.hasAttribute("disabled") && el.offsetParent !== null);
+      if (elementos.length === 0) return;
+      const primero = elementos[0];
+      const ultimo = elementos[elementos.length - 1];
+      if (evento.shiftKey && document.activeElement === primero) {
+        evento.preventDefault();
+        ultimo.focus();
+      } else if (!evento.shiftKey && document.activeElement === ultimo) {
+        evento.preventDefault();
+        primero.focus();
+      }
     };
     document.addEventListener("keydown", alPulsarTecla);
-    document.body.style.overflow = "hidden";
     return () => {
       document.removeEventListener("keydown", alPulsarTecla);
-      document.body.style.overflow = "";
+      ventanasAbiertas = Math.max(0, ventanasAbiertas - 1);
+      if (ventanasAbiertas === 0) document.body.style.overflow = "";
     };
   }, [abierto, alCerrar]);
 
@@ -39,7 +69,7 @@ export function VentanaEmergente({
       aria-label={titulo ?? "Ventana"}
     >
       <div className="ventanaEmergente__fondo" onClick={alCerrar} />
-      <div className="ventanaEmergente__contenido">
+      <div className="ventanaEmergente__contenido" ref={referenciaContenido}>
         <div className="ventanaEmergente__cabecera">
           {titulo ? <h2 className="ventanaEmergente__titulo">{titulo}</h2> : null}
           <button

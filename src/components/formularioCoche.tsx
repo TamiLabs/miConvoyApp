@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faCheck, faXmark } from "@fortawesome/free-solid-svg-icons";
 import {
   ETIQUETAS_COMBUSTIBLE,
   type CocheLocal,
@@ -14,6 +16,7 @@ export interface DatosFormularioCoche {
   consumo: number;
   precioPorLitro: number;
   tipoCombustible: TipoCombustible;
+  plazas: number;
 }
 
 interface PropiedadesFormularioCoche {
@@ -74,12 +77,16 @@ export function FormularioCoche({
   const [tipoCombustible, setTipoCombustible] = useState<TipoCombustible>(
     valoresIniciales?.tipoCombustible ?? "gasolina",
   );
+  const [plazasTexto, setPlazasTexto] = useState(
+    valoresIniciales ? String(valoresIniciales.plazas ?? 5) : "",
+  );
   const [error, setError] = useState<string | null>(null);
 
   const alEnviar = (evento: React.FormEvent) => {
     evento.preventDefault();
     const consumo = interpretarNumero(consumoTexto);
     const precioPorLitro = interpretarNumero(precioTexto);
+    const plazas = Number.parseInt(plazasTexto, 10);
     if (!marca.trim() || !modelo.trim() || !matricula.trim()) {
       setError("Rellena marca, modelo y matrícula.");
       return;
@@ -92,6 +99,10 @@ export function FormularioCoche({
       setError("El precio del combustible debe ser mayor que 0 (vale con , o .).");
       return;
     }
+    if (!Number.isInteger(plazas) || plazas < 1 || plazas > 9) {
+      setError("Las plazas deben ser entre 1 y 9, incluido el conductor.");
+      return;
+    }
     setError(null);
     alGuardar({
       marca: marca.trim(),
@@ -100,6 +111,7 @@ export function FormularioCoche({
       consumo,
       precioPorLitro,
       tipoCombustible,
+      plazas,
     });
   };
 
@@ -171,13 +183,24 @@ export function FormularioCoche({
           ))}
         </select>
       </label>
+      <label className="formulario__campo">
+        <span className="formulario__etiqueta">Plazas (incluido el conductor)</span>
+        <input
+          className="formulario__entrada"
+          value={plazasTexto}
+          onChange={(e) => setPlazasTexto(e.target.value)}
+          placeholder="p. ej. 5"
+          inputMode="numeric"
+          required
+        />
+      </label>
       {error ? <p className="formulario__error">{error}</p> : null}
       <div className="formulario__acciones">
         <button type="button" className="formulario__botonSecundario" onClick={alCancelar}>
-          Cancelar
+          <FontAwesomeIcon icon={faXmark} /> Cancelar
         </button>
         <button type="submit" className="formulario__botonPrincipal">
-          {textoBoton}
+          <FontAwesomeIcon icon={faCheck} /> {textoBoton}
         </button>
       </div>
     </form>

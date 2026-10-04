@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { GoogleLogin, GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faGoogle } from "@fortawesome/free-brands-svg-icons";
+import { faUserPlus } from "@fortawesome/free-solid-svg-icons";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 
 export interface DatosPerfilNuevo {
   correo: string;
@@ -32,24 +32,6 @@ function BotonesGoogle({
   alCrear: (datos: DatosPerfilNuevo) => void;
   alFallar: (mensaje: string) => void;
 }) {
-  const iniciarConGoogle = useGoogleLogin({
-    flow: "implicit",
-    scope: "openid email profile",
-    onSuccess: async (respuestaToken) => {
-      try {
-        const respuesta = await fetch(
-          `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${respuestaToken.access_token}`,
-        );
-        const datos = await respuesta.json();
-        if (!datos.email) throw new Error("sin correo");
-        alCrear({ correo: datos.email, nombre: datos.name ?? datos.email, foto: datos.picture });
-      } catch {
-        alFallar("No se pudo leer la cuenta de Google. Usa el formulario manual.");
-      }
-    },
-    onError: () => alFallar("No se pudo iniciar sesión con Google."),
-  });
-
   return (
     <div className="paginaPerfil__google">
       <GoogleLogin
@@ -105,10 +87,7 @@ export function CrearPerfil({ alCrear, correoInicial = "" }: PropiedadesCrearPer
           <BotonesGoogle alCrear={alCrear} alFallar={setError} />
         </GoogleOAuthProvider>
       ) : (
-        <p className="textoSuave">
-          Pon tu client ID de Google en NEXT_PUBLIC_GOOGLE_CLIENT_ID para activar el botón real, o
-          continúa con correo y nombre (modo local).
-        </p>
+        <p className="textoSuave">O continúa con tu correo y nombre.</p>
       )}
       <form className="formulario" onSubmit={alEnviarManual}>
         <label className="formulario__campo">
@@ -134,7 +113,7 @@ export function CrearPerfil({ alCrear, correoInicial = "" }: PropiedadesCrearPer
         </label>
         {error ? <p className="formulario__error">{error}</p> : null}
         <button type="submit" className="formulario__botonPrincipal">
-          Crear perfil
+          <FontAwesomeIcon icon={faUserPlus} /> Crear perfil
         </button>
       </form>
     </div>

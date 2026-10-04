@@ -1,17 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
   faArrowRight,
   faCalculator,
-  faCopy,
+  faCar,
+  faFlagCheckered,
+  faHouse,
   faLocationDot,
   faMinus,
+  faPen,
   faPlus,
-  faRotateRight,
+  faRoute,
   faShareNodes,
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
@@ -21,21 +24,27 @@ import {
   eliminarUltimoViaje,
   guardarUltimoViaje,
   obtenerHistorialActivo,
+  obtenerPasoCalculadora,
+  guardarPasoCalculadora,
   obtenerPerfil,
   obtenerUltimoViaje,
 } from "@/storage/datosLocales";
-import { ETIQUETAS_COMBUSTIBLE } from "@/storage/tiposModoGratis";
 import type {
   CocheDelViajeLocal,
   EntradaHistorial,
   GastoAdicionalLocal,
   PerfilLocal,
 } from "@/storage/tiposModoGratis";
-import { formatearEuros } from "@/formato";
+import { formatearEuros, formatearFecha, nombreCortoRuta } from "@/formato";
 import { calcularConvoy, type ResultadoCalculo } from "@/calculadora";
 import { interpretarNumero } from "@/components/formularioCoche";
 import { CampoDireccion } from "@/components/campoDireccion";
-import { calcularRutaORS, leerClaveORS, type PuntoRuta } from "@/mapas/openRouteService";
+import {
+  buscarDirecciones,
+  calcularRutaORS,
+  estanCaidosLosMapas,
+  type PuntoRuta,
+} from "@/mapas/openRouteService";
 
 const MapaViaje = dynamic(
   () => import("@/components/mapaViaje").then((modulo) => modulo.MapaViaje),
@@ -92,7 +101,32 @@ export default function PaginaCalculadora() {
   const [cargando, setCargando] = useState(true);
   const [perfil, setPerfil] = useState<PerfilLocal | null>(null);
   const [paso, setPaso] = useState(0);
-  const [error, setError] = useState<string | null>(null);
+  const [parpadeando, setParpadeando] = useState(false);
+  const [parpadeoExtra, setParpadeoExtra] = useState(false);
+  const temporizadorParpadeo = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [nota, setNota] = useState<string | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (temporizadorParpadeo.current) clearTimeout(temporizadorParpadeo.current);
+    };
+  }, []);
+
+  // Hace parpadear 2s los campos que falten (escala sin mover la vista).
+  // Con extra=true resalta también origen/destino aunque tengan texto
+  // (p. ej. si no se pudieron resolver).
+  const dispararParpadeo = (extra = false) => {
+    setParpadeando(false);
+    if (temporizadorParpadeo.current) clearTimeout(temporizadorParpadeo.current);
+    requestAnimationFrame(() => {
+      setParpadeando(true);
+      setParpadeoExtra(extra);
+      temporizadorParpadeo.current = setTimeout(() => {
+        setParpadeando(false);
+        setParpadeoExtra(false);
+      }, 2000);
+    });
+  };
 
   const [origen, setOrigen] = useState("");
   const [destino, setDestino] = useState("");
@@ -101,6 +135,7 @@ export default function PaginaCalculadora() {
   const [lineaRuta, setLineaRuta] = useState<[number, number][]>([]);
   const [calculandoRuta, setCalculandoRuta] = useState(false);
   const [infoRuta, setInfoRuta] = useState<string | null>(null);
+  const [mapasCaidosUi, setMapasCaidosUi] = useState(false);
   const [distanciaTexto, setDistanciaTexto] = useState("");
   const [idaYVuelta, setIdaYVuelta] = useState(true);
   const [localizando, setLocalizando] = useState(false);
@@ -113,18 +148,20 @@ export default function PaginaCalculadora() {
   const [desactualizado, setDesactualizado] = useState(false);
   const [guardado, setGuardado] = useState(false);
   const [sinRedondeo, setSinRedondeo] = useState(false);
+  const [fechaCalculo, setFechaCalculo] = useState<string | null>(null);
   const [historialActivo, setHistorialActivo] = useState(true);
-  const [copiado, setCopiado] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const [perfilGuardado, ultimoViaje, activo] = await Promise.all([
+      const [perfilGuardado, ultimoViaje, activo, pasoGuardado] = await Promise.all([
         obtenerPerfil(adaptadorAlmacenamientoLocal),
         obtenerUltimoViaje(adaptadorAlmacenamientoLocal),
         obtenerHistorialActivo(adaptadorAlmacenamientoLocal),
+        obtenerPasoCalculadora(adaptadorAlmacenamientoLocal),
       ]);
       setPerfil(perfilGuardado);
       setHistorialActivo(activo);
+      setPaso(pasoGuardado);
       if (ultimoViaje) {
         setOrigen(ultimoViaje.origen);
         setDestino(ultimoViaje.destino);
@@ -135,7 +172,7 @@ export default function PaginaCalculadora() {
         setEsConvoy(ultimoViaje.esConvoy);
         setCoches(
           ultimoViaje.coches.map((coche) => {
-            const precioGuardado = coche.precioPorLitro ?? ultimoViaje.precioPorLitro ?? 0;
+            const precioGuardado = coche.precioPorLitro ?? 0;
             return {
               clave: generarClave(),
               nombreConductor: coche.nombreConductor,
@@ -172,10 +209,14 @@ export default function PaginaCalculadora() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (!cargando) void guardarPasoCalculadora(adaptadorAlmacenamientoLocal, paso);
+  }, [paso, cargando]);
+
   const tocar = () => {
     if (resultado) setDesactualizado(true);
-    setError(null);
-    setCopiado(false);
+
+    setNota(null);
   };
 
   // Precio del coche: interno desde el perfil al elegir coche, o manual.
@@ -183,6 +224,12 @@ export default function PaginaCalculadora() {
     const elegido = perfil?.coches.find((c) => c.id === coche.idCoche);
     if (elegido) return elegido.precioPorLitro > 0 ? elegido.precioPorLitro : null;
     return interpretarNumero(coche.precioTexto);
+  };
+
+  // Plazas del coche elegido (tope de ocupantes con conductor). En manual no hay tope.
+  const plazasDeCoche = (coche: CocheForm): number | null => {
+    const elegido = perfil?.coches.find((c) => c.id === coche.idCoche);
+    return elegido?.plazas ?? null;
   };
 
   // El campo pide ocupantes totales (pasajeros + conductor). Con la casilla
@@ -197,7 +244,7 @@ export default function PaginaCalculadora() {
 
   const alUsarPosicion = () => {
     if (!("geolocation" in navigator)) {
-      setError("Tu navegador no permite usar la geolocalización.");
+      setNota("Tu navegador no permite usar la geolocalización.");
       return;
     }
     setLocalizando(true);
@@ -216,7 +263,7 @@ export default function PaginaCalculadora() {
         tocar();
       },
       () => {
-        setError("No se pudo obtener tu posición. Escríbela a mano.");
+        setNota("No se pudo obtener tu posición. Escríbela a mano.");
         setLocalizando(false);
       },
       { timeout: 10000 },
@@ -255,15 +302,18 @@ export default function PaginaCalculadora() {
     tocar();
   };
 
-  const alCalcularDistancia = async () => {
-    if (!origenPunto || !destinoPunto) {
-      setError("Elige origen y destino de las sugerencias para calcular los km.");
-      return;
-    }
+  const ultimoCalculoAuto = useRef("");
+  const calculandoRef = useRef(false);
+
+  const calcularDistancia = async (origen: PuntoRuta, destino: PuntoRuta) => {
+    const clave = `${origen.latitud},${origen.longitud}|${destino.latitud},${destino.longitud}`;
+    if (calculandoRef.current || ultimoCalculoAuto.current === clave) return;
+    calculandoRef.current = true;
+    ultimoCalculoAuto.current = clave;
     setCalculandoRuta(true);
-    setError(null);
+
     try {
-      const ruta = await calcularRutaORS(origenPunto, destinoPunto);
+      const ruta = await calcularRutaORS(origen, destino);
       setDistanciaTexto(String(Number(ruta.distanciaKm.toFixed(1))).replace(".", ","));
       setLineaRuta(ruta.linea);
       setInfoRuta(
@@ -271,10 +321,63 @@ export default function PaginaCalculadora() {
       );
       tocar();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo calcular la distancia.");
+      ultimoCalculoAuto.current = "";
+      setNota(e instanceof Error ? e.message : "No se pudo calcular la distancia.");
+      dispararParpadeo(true);
+      if (estanCaidosLosMapas()) setMapasCaidosUi(true);
     }
+    calculandoRef.current = false;
     setCalculandoRuta(false);
   };
+
+  // Si solo hay texto, resuelve la primera sugerencia de cada uno.
+  const resolverPunto = async (
+    texto: string,
+    punto: PuntoRuta | null,
+    alFijar: (p: PuntoRuta, etiqueta: string) => void,
+  ): Promise<PuntoRuta | null> => {
+    if (punto) return punto;
+    if (!texto.trim()) return null;
+    const sugerencias = await buscarDirecciones(texto.trim());
+    const primera = sugerencias[0];
+    if (!primera) throw new Error(`Sin resultados para "${texto.trim()}".`);
+    const resuelto: PuntoRuta = {
+      latitud: primera.latitud,
+      longitud: primera.longitud,
+      etiqueta: primera.etiqueta,
+    };
+    alFijar(resuelto, primera.etiqueta);
+    return resuelto;
+  };
+
+  const alCalcularDistancia = async () => {
+    try {
+      const o = await resolverPunto(origen, origenPunto, (p, etiqueta) => {
+        setOrigen(etiqueta);
+        setOrigenPunto(p);
+      });
+      const d = await resolverPunto(destino, destinoPunto, (p, etiqueta) => {
+        setDestino(etiqueta);
+        setDestinoPunto(p);
+      });
+      if (!o || !d) {
+        setNota("Escribe origen y destino para calcular los km.");
+        dispararParpadeo();
+        return;
+      }
+      ultimoCalculoAuto.current = "";
+      await calcularDistancia(o, d);
+    } catch (e) {
+      setNota(e instanceof Error ? e.message : "No se pudo calcular la distancia.");
+      dispararParpadeo(true);
+    }
+  };
+
+  // Autocálculo: en cuanto hay origen y destino exactos, sin pulsar nada.
+  useEffect(() => {
+    if (origenPunto && destinoPunto) void calcularDistancia(origenPunto, destinoPunto);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [origenPunto, destinoPunto]);
 
   const nuevoCocheVacio = (conductor = ""): CocheForm => {
     const primero = perfil?.coches[0];
@@ -329,68 +432,132 @@ export default function PaginaCalculadora() {
     tocar();
   };
 
-  const validarViaje = (): string | null => {
-    if (interpretarNumero(distanciaTexto) === null || (interpretarNumero(distanciaTexto) ?? 0) <= 0)
-      return "Escribe la distancia en km (vale con , o .).";
+  // Fuente única de verdad para validar: cada campo devuelve su fallo o null.
+  // Los booleanos de abajo derivan de aquí (parpadeo) y los validar* componen.
+  const esTextoRelleno = (texto: string): boolean => texto.trim().length > 0;
+  const esNumeroPositivo = (texto: string): boolean => {
+    const numero = interpretarNumero(texto);
+    return numero !== null && numero > 0;
+  };
+  const falloTextoRequerido = (texto: string, mensaje: string): string | null =>
+    esTextoRelleno(texto) ? null : mensaje;
+  const falloNumeroPositivo = (texto: string, mensaje: string): string | null =>
+    esNumeroPositivo(texto) ? null : mensaje;
+  const falloConsumo = (coche: CocheForm): string | null => {
+    if (esNumeroPositivo(coche.consumoTexto)) return null;
+    return estaEnPerfil(perfil, coche.idCoche)
+      ? "El coche elegido no tiene un consumo válido. Revísalo en tu perfil."
+      : "Revisa el consumo (L/100km).";
+  };
+  const falloPrecio = (coche: CocheForm): string | null => {
+    if ((precioDeCoche(coche) ?? 0) > 0) return null;
+    return estaEnPerfil(perfil, coche.idCoche)
+      ? "El coche elegido no tiene precio: edítalo en tu perfil."
+      : "Revisa el precio del combustible (€/L).";
+  };
+  const falloOcupantes = (coche: CocheForm): string | null => {
+    const ocupantes = Number.parseInt(coche.pasajerosTexto, 10);
+    if (!Number.isInteger(ocupantes) || ocupantes < 1)
+      return "Escribe cuántas personas van en el coche (mínimo 1).";
+    if (!coche.incluirConductor && ocupantes < 2)
+      return "Si el conductor no paga, tiene que haber al menos 2 ocupantes.";
+    const plazas = plazasDeCoche(coche);
+    if (plazas !== null && ocupantes > plazas)
+      return `Este coche tiene ${plazas} plazas como máximo (incluido el conductor).`;
     return null;
   };
+  const falloGasto = (gasto: GastoForm): string | null => {
+    if (!gasto.nombre.trim() && !gasto.importeTexto.trim()) return null;
+    if (!gasto.nombre.trim()) return "Cada gasto necesita un nombre.";
+    if (!esNumeroPositivo(gasto.importeTexto))
+      return `Revisa el importe de "${gasto.nombre.trim()}".`;
+    return null;
+  };
+
+  const validarViaje = (): string | null =>
+    falloTextoRequerido(origen, "Escribe el origen del viaje.") ??
+    falloTextoRequerido(destino, "Escribe el destino del viaje.") ??
+    falloNumeroPositivo(distanciaTexto, "Escribe la distancia en km (vale con , o .).");
 
   const validarCoches = (): string | null => {
     for (let i = 0; i < coches.length; i++) {
       const coche = coches[i];
       const etiqueta = esConvoy ? `Coche ${i + 1}: ` : "";
-      if (!coche.nombreConductor.trim()) return `${etiqueta}Falta el nombre del conductor.`;
-      const consumo = interpretarNumero(coche.consumoTexto);
-      if (consumo === null || consumo <= 0)
-        return estaEnPerfil(perfil, coche.idCoche)
-          ? `${etiqueta}El coche elegido no tiene un consumo válido. Revísalo en tu perfil.`
-          : `${etiqueta}Revisa el consumo (L/100km).`;
-      const precio = precioDeCoche(coche);
-      if (precio === null || precio <= 0)
-        return estaEnPerfil(perfil, coche.idCoche)
-          ? `${etiqueta}El coche elegido no tiene precio: edítalo en tu perfil.`
-          : `${etiqueta}Revisa el precio del combustible (€/L).`;
-      const ocupantes = Number.parseInt(coche.pasajerosTexto, 10);
-      if (!Number.isInteger(ocupantes) || ocupantes < 1)
-        return `${etiqueta}Escribe cuántas personas van en el coche (mínimo 1).`;
-      if (!coche.incluirConductor && ocupantes < 2)
-        return `${etiqueta}Si el conductor no paga, tiene que haber al menos 2 ocupantes.`;
+      const fallo =
+        falloTextoRequerido(coche.nombreConductor, "Falta el nombre del conductor.") ??
+        falloConsumo(coche) ??
+        falloPrecio(coche) ??
+        falloOcupantes(coche);
+      if (fallo) return `${etiqueta}${fallo}`;
     }
     return null;
   };
 
   const validarGastos = (): string | null => {
     for (const gasto of gastos) {
-      const relleno = gasto.nombre.trim() || gasto.importeTexto.trim();
-      if (!relleno) continue;
-      if (!gasto.nombre.trim()) return "Cada gasto necesita un nombre.";
-      const importe = interpretarNumero(gasto.importeTexto);
-      if (importe === null || importe <= 0) return `Revisa el importe de "${gasto.nombre.trim()}".`;
+      const fallo = falloGasto(gasto);
+      if (fallo) return fallo;
     }
     return null;
   };
 
+  const validarPaso = (indice: number): string | null => {
+    if (indice === 0) return validarViaje();
+    if (indice === 1) return validarCoches();
+    return validarGastos();
+  };
+
+  const esOcupantesValido = (coche: CocheForm): boolean => falloOcupantes(coche) === null;
+  const estadoGasto = (gasto: GastoForm): "vacio" | "valido" | "invalido" => {
+    if (!gasto.nombre.trim() && !gasto.importeTexto.trim()) return "vacio";
+    return falloGasto(gasto) === null ? "valido" : "invalido";
+  };
+  // Parpadeo en los campos que falten (2s y para).
+  const claseParpadeo = (invalido: boolean): string =>
+    `formulario__entrada${parpadeando && invalido ? " formulario__entrada--parpadeo" : ""}`;
+
   const alSiguiente = () => {
-    const fallo = paso === 0 ? validarViaje() : paso === 1 ? validarCoches() : validarGastos();
+    const fallo = validarPaso(paso);
     if (fallo) {
-      setError(fallo);
+      setNota(fallo);
+      dispararParpadeo();
       return;
     }
-    setError(null);
+
     setPaso((p) => Math.min(p + 1, 3));
   };
 
-  const alCalcular = async () => {
-    const fallo = validarViaje() ?? validarCoches() ?? validarGastos();
-    if (fallo) {
-      setError(fallo);
+  // Saltar entre pasos: hacia atrás siempre se puede; hacia adelante solo si
+  // todos los pasos intermedios están completos.
+  const alIrAPaso = (indice: number) => {
+    if (indice <= paso) {
+      setPaso(indice);
+
       return;
     }
+    for (let i = paso; i < indice; i++) {
+      const fallo = validarPaso(i);
+      if (fallo) {
+        setNota(fallo);
+        dispararParpadeo();
+        return;
+      }
+    }
+
+    setPaso(indice);
+  };
+
+  // Todo lo derivado del formulario en un solo sitio: lo usan alCalcular,
+  // alFinalizar y el log. Sin esto habría tres copias divergentes.
+  const construirDatosViaje = () => {
     const distanciaKm = interpretarNumero(distanciaTexto) ?? 0;
     const gastosLimpios: GastoAdicionalLocal[] = gastos
       .filter((g) => g.nombre.trim() || g.importeTexto.trim())
       .map((g) => ({ nombre: g.nombre.trim(), importe: interpretarNumero(g.importeTexto) ?? 0 }));
-
+    const precios = coches.map((coche) => precioDeCoche(coche) ?? 0);
+    const tipos = coches.map(
+      (coche) => perfil?.coches.find((c) => c.id === coche.idCoche)?.tipoCombustible,
+    );
     const entradasCalculo = coches.map((coche) => ({
       consumo: interpretarNumero(coche.consumoTexto) ?? 0,
       distanciaKm,
@@ -400,14 +567,40 @@ export default function PaginaCalculadora() {
       ...aReparto(coche),
     }));
     const resultados = calcularConvoy(entradasCalculo);
+    const total = resultados.reduce((suma, r) => suma + r.costeTotal, 0);
+    const totalParticipantes = coches.reduce(
+      (suma, c) => suma + Number.parseInt(c.pasajerosTexto, 10) - (c.incluirConductor ? 0 : 1),
+      0,
+    );
+    const media = Math.ceil(total / Math.max(totalParticipantes, 1) / 0.5) * 0.5;
+    return {
+      distanciaKm,
+      gastosLimpios,
+      precios,
+      tipos,
+      entradasCalculo,
+      resultados,
+      total,
+      media,
+    };
+  };
+
+  const alCalcular = async () => {
+    const fallo = validarViaje() ?? validarCoches() ?? validarGastos();
+    if (fallo) {
+      setNota(fallo);
+      dispararParpadeo();
+      return;
+    }
+    const datos = construirDatosViaje();
     console.log(
       [
         "[MiConvoy] Cálculo del viaje:",
         `Ruta: ${origen.trim() || "—"} → ${destino.trim() || "—"}`,
-        `Distancia: ${distanciaKm} km${idaYVuelta ? " x2 (ida y vuelta)" : ""}`,
-        ...resultados.map((r, i) => {
+        `Distancia: ${datos.distanciaKm} km${idaYVuelta ? " x2 (ida y vuelta)" : ""}`,
+        ...datos.resultados.map((r, i) => {
           const coche = coches[i];
-          const entrada = entradasCalculo[i];
+          const entrada = datos.entradasCalculo[i];
           const ocupantes = Number.parseInt(coche.pasajerosTexto, 10);
           const pagan = entrada.incluirConductorEnReparto ? ocupantes : ocupantes - 1;
           const detalle = entrada.incluirConductorEnReparto
@@ -422,29 +615,28 @@ export default function PaginaCalculadora() {
         }),
       ].join("\n"),
     );
-    setResultado(resultados);
+    setResultado(datos.resultados);
     setDesactualizado(false);
     setGuardado(false);
-    setError(null);
+    setFechaCalculo(new Date().toISOString());
+
     setPaso(3);
 
-    const precios = coches.map((coche) => precioDeCoche(coche) ?? 0);
     await guardarUltimoViaje(adaptadorAlmacenamientoLocal, {
       origen: origen.trim(),
       destino: destino.trim(),
-      distanciaKm,
-      precioPorLitro: precios[0] ?? 0,
+      distanciaKm: datos.distanciaKm,
       idaYVuelta,
       esConvoy,
       coches: coches.map((coche, i) => ({
         nombreConductor: coche.nombreConductor.trim(),
         idCoche: coche.idCoche || undefined,
         consumo: interpretarNumero(coche.consumoTexto) ?? 0,
-        precioPorLitro: precios[i] ?? 0,
-        tipoCombustible: perfil?.coches.find((c) => c.id === coche.idCoche)?.tipoCombustible,
+        precioPorLitro: datos.precios[i] ?? 0,
+        tipoCombustible: datos.tipos[i],
         ...aReparto(coche),
       })),
-      gastosAdicionales: gastosLimpios,
+      gastosAdicionales: datos.gastosLimpios,
     });
   };
 
@@ -452,17 +644,7 @@ export default function PaginaCalculadora() {
   // se puede navegar libremente entre pasos para cambiar datos.
   const alFinalizar = async () => {
     if (!resultado || desactualizado || guardado) return;
-    const distanciaKm = interpretarNumero(distanciaTexto) ?? 0;
-    const gastosLimpios: GastoAdicionalLocal[] = gastos
-      .filter((g) => g.nombre.trim() || g.importeTexto.trim())
-      .map((g) => ({ nombre: g.nombre.trim(), importe: interpretarNumero(g.importeTexto) ?? 0 }));
-    const precios = coches.map((coche) => precioDeCoche(coche) ?? 0);
-    const total = resultado.reduce((suma, r) => suma + r.costeTotal, 0);
-    const totalParticipantes = coches.reduce(
-      (suma, c) => suma + Number.parseInt(c.pasajerosTexto, 10) - (c.incluirConductor ? 0 : 1),
-      0,
-    );
-    const media = Math.ceil(total / Math.max(totalParticipantes, 1) / 0.5) * 0.5;
+    const datos = construirDatosViaje();
     const entrada: EntradaHistorial = {
       id: generarClave(),
       fecha: new Date().toISOString(),
@@ -470,20 +652,20 @@ export default function PaginaCalculadora() {
       idaYVuelta,
       origen: origen.trim() || undefined,
       destino: destino.trim() || undefined,
-      distanciaKm,
+      distanciaKm: datos.distanciaKm,
       precioCombustible: esConvoy
-        ? precios.reduce((suma, p) => suma + p, 0) / Math.max(precios.length, 1)
-        : (precios[0] ?? 0),
+        ? datos.precios.reduce((suma, p) => suma + p, 0) / Math.max(datos.precios.length, 1)
+        : (datos.precios[0] ?? 0),
       coches: coches.map((coche, i): CocheDelViajeLocal => ({
         nombreConductor: coche.nombreConductor.trim(),
         idCoche: coche.idCoche || undefined,
         consumo: interpretarNumero(coche.consumoTexto) ?? 0,
-        precioPorLitro: precios[i] ?? 0,
+        precioPorLitro: datos.precios[i] ?? 0,
         ...aReparto(coche),
       })),
-      gastosAdicionales: gastosLimpios,
-      resultado: { costeTotal: total, costePorPersona: media },
-      detallePorCoche: resultado.map((r) => ({
+      gastosAdicionales: datos.gastosLimpios,
+      resultado: { costeTotal: datos.total, costePorPersona: datos.media },
+      detallePorCoche: datos.resultados.map((r) => ({
         costeTotal: r.costeTotal,
         costePorPersona: r.costePorPersona,
       })),
@@ -513,9 +695,11 @@ export default function PaginaCalculadora() {
     if (!resultado) return "";
     // Mismo contenido que el ticket visible: ruta, fecha, ida/vuelta, km,
     // personas y, por coche, conductor, coche, importe y "por persona".
-    const fecha = new Date().toLocaleDateString("es-ES");
+    const fecha = fechaCalculo
+      ? formatearFecha(fechaCalculo)
+      : formatearFecha(new Date().toISOString());
     const cabecera = `${fecha} · ${idaYVuelta ? "Ida y vuelta" : "Solo ida"} · ${distanciaMostrada()} km · ${pasajerosTotales()} persona${pasajerosTotales() === 1 ? "" : "s"}`;
-    const ruta = [origen.trim(), destino.trim()].filter(Boolean).join(" → ") || "Viaje";
+    const ruta = nombreCortoRuta(origen, destino);
     const bloques = resultado.map((r, i) => {
       const lineasBloque: string[] = [];
       if (esConvoy) {
@@ -535,7 +719,6 @@ export default function PaginaCalculadora() {
     const texto = textoParaCompartir();
     try {
       await navigator.clipboard.writeText(texto);
-      setCopiado(true);
     } catch {
       const area = document.createElement("textarea");
       area.value = texto;
@@ -543,7 +726,6 @@ export default function PaginaCalculadora() {
       area.select();
       document.execCommand("copy");
       document.body.removeChild(area);
-      setCopiado(true);
     }
   };
 
@@ -557,15 +739,19 @@ export default function PaginaCalculadora() {
       }
     } else {
       await alCopiar();
-      setError("Tu navegador no permite compartir directamente: el texto se ha copiado.");
+      setNota("Tu navegador no permite compartir directamente: el texto se ha copiado.");
     }
   };
 
-  // Vacía todo el formulario para empezar un viaje de cero.
-  const alReiniciar = async () => {
+  // Vacía todo y vuelve al inicio para empezar un viaje de cero.
+  const alVolverAlInicio = async () => {
     await eliminarUltimoViaje(adaptadorAlmacenamientoLocal);
     setOrigen("");
     setDestino("");
+    setOrigenPunto(null);
+    setDestinoPunto(null);
+    setLineaRuta([]);
+    setInfoRuta(null);
     setDistanciaTexto("");
     setIdaYVuelta(true);
     setEsConvoy(false);
@@ -575,14 +761,17 @@ export default function PaginaCalculadora() {
     setDesactualizado(false);
     setGuardado(false);
     setSinRedondeo(false);
-    setCopiado(false);
-    setError(null);
+    setFechaCalculo(null);
+
     setPaso(0);
   };
 
   if (cargando) return <p className="paginaCalculadora textoSuave">Cargando calculadora…</p>;
 
-  const totalResultado = resultado?.reduce((suma, r) => suma + r.costeTotal, 0) ?? 0;
+  // En el paso 4 con resultado los pasos se bloquean (sin --hecho): para
+  // corregir se usa Editar; el paso 4 solo es clicable si ya hay resultado.
+  const pasosBloqueados = paso === 3 && resultado !== null;
+  const pasoClicable = (i: number) => !pasosBloqueados && (i < 3 || resultado !== null);
 
   return (
     <section className="paginaCalculadora">
@@ -593,17 +782,33 @@ export default function PaginaCalculadora() {
             className={
               i === paso
                 ? "calculadora__paso calculadora__paso--activo"
-                : i < paso
+                : !pasosBloqueados && i < paso
                   ? "calculadora__paso calculadora__paso--hecho"
                   : "calculadora__paso"
             }
           >
-            <span className="calculadora__pasoNumero">{i + 1}</span> {titulo}
+            {pasoClicable(i) ? (
+              <button
+                type="button"
+                className="calculadora__pasoBoton"
+                onClick={() => alIrAPaso(i)}
+                aria-current={i === paso ? "step" : undefined}
+                aria-label={`Ir al paso ${i + 1}: ${titulo}`}
+              >
+                <span className="calculadora__pasoNumero">{i + 1}</span> {titulo}
+              </button>
+            ) : (
+              <span
+                className="calculadora__pasoBoton calculadora__pasoBoton--fijo"
+                aria-current={i === paso ? "step" : undefined}
+              >
+                <span className="calculadora__pasoNumero">{i + 1}</span> {titulo}
+              </span>
+            )}
           </li>
         ))}
       </ol>
-
-      {error ? <p className="formulario__error">{error}</p> : null}
+      {nota ? <p className="textoSuave">{nota}</p> : null}
 
       {paso === 0 && (
         <div className="formulario">
@@ -613,6 +818,7 @@ export default function PaginaCalculadora() {
             placeholder="¿Desde dónde salís?"
             alCambiar={alCambiarOrigen}
             alElegir={alElegirOrigen}
+            resaltar={parpadeando && (!esTextoRelleno(origen) || parpadeoExtra)}
             botonExtra={
               <button
                 type="button"
@@ -631,36 +837,39 @@ export default function PaginaCalculadora() {
             placeholder="¿A dónde vais?"
             alCambiar={alCambiarDestino}
             alElegir={alElegirDestino}
+            resaltar={parpadeando && (!esTextoRelleno(destino) || parpadeoExtra)}
           />
           <MapaViaje origen={origenPunto} destino={destinoPunto} linea={lineaRuta} />
-          {leerClaveORS() ? (
-            <>
+          <div className="calculadora__distanciaFila">
+            {!mapasCaidosUi && (
               <button
                 type="button"
                 className="formulario__botonSecundario"
                 onClick={alCalcularDistancia}
-                disabled={calculandoRuta || !origenPunto || !destinoPunto}
+                disabled={calculandoRuta || !origen.trim() || !destino.trim()}
+                aria-label="Calcular distancia automáticamente"
+                title="Calcular distancia automáticamente"
               >
-                {calculandoRuta ? "Calculando…" : "Calcular distancia automáticamente"}
+                <FontAwesomeIcon icon={faRoute} spin={calculandoRuta} />
               </button>
-              {infoRuta ? <p className="textoSuave">{infoRuta}</p> : null}
-            </>
-          ) : null}
-          <label className="formulario__campo">
-            <span className="formulario__etiqueta">Distancia (km)</span>
+            )}
             <input
-              className="formulario__entrada"
-              value={distanciaTexto}
+              className={claseParpadeo(!esNumeroPositivo(distanciaTexto))}
+              value={infoRuta ?? distanciaTexto}
               onChange={(e) => {
                 setDistanciaTexto(e.target.value);
                 tocar();
               }}
-              placeholder="p. ej. 120 o 120,5"
+              placeholder="0 km"
+              aria-label="Distancia en kilómetros"
               inputMode="decimal"
+              readOnly={infoRuta !== null}
             />
-          </label>
+          </div>
           <p className="textoSuave">
-            Elige origen y destino de las sugerencias para calcular los km, o escríbelos a mano.
+            {mapasCaidosUi
+              ? "Mapas no disponibles de momento: escribe los km a mano."
+              : "Elige origen y destino de las sugerencias para calcular los km, o escríbelos a mano."}
           </p>
           <label className="calculadora__interruptor">
             <input
@@ -725,7 +934,7 @@ export default function PaginaCalculadora() {
               <label className="formulario__campo">
                 <span className="formulario__etiqueta">Nombre del conductor</span>
                 <input
-                  className="formulario__entrada"
+                  className={claseParpadeo(!esTextoRelleno(coche.nombreConductor))}
                   value={coche.nombreConductor}
                   onChange={(e) => {
                     const valor = e.target.value;
@@ -761,7 +970,7 @@ export default function PaginaCalculadora() {
                   <label className="formulario__campo">
                     <span className="formulario__etiqueta">Precio combustible (€/L)</span>
                     <input
-                      className="formulario__entrada"
+                      className={claseParpadeo(!((precioDeCoche(coche) ?? 0) > 0))}
                       value={coche.precioTexto}
                       onChange={(e) => {
                         const valor = e.target.value;
@@ -779,7 +988,7 @@ export default function PaginaCalculadora() {
                   <label className="formulario__campo">
                     <span className="formulario__etiqueta">Consumo (L/100km)</span>
                     <input
-                      className="formulario__entrada"
+                      className={claseParpadeo(!esNumeroPositivo(coche.consumoTexto))}
                       value={coche.consumoTexto}
                       onChange={(e) => {
                         const valor = e.target.value;
@@ -799,7 +1008,7 @@ export default function PaginaCalculadora() {
               <label className="formulario__campo">
                 <span className="formulario__etiqueta">Nº ocupantes (incluido el conductor)</span>
                 <input
-                  className="formulario__entrada"
+                  className={claseParpadeo(!esOcupantesValido(coche))}
                   value={coche.pasajerosTexto}
                   onChange={(e) => {
                     const valor = e.target.value;
@@ -812,12 +1021,14 @@ export default function PaginaCalculadora() {
                   }}
                   placeholder="4"
                   inputMode="numeric"
+                  max={plazasDeCoche(coche) ?? undefined}
                 />
                 {Number.parseInt(coche.pasajerosTexto, 10) >= 1 && (
                   <span className="textoSuave">
                     {coche.incluirConductor
                       ? `Se divide entre ${coche.pasajerosTexto} (todos pagan)`
                       : `Se divide entre ${Number.parseInt(coche.pasajerosTexto, 10) - 1} (el conductor va invitado)`}
+                    {plazasDeCoche(coche) !== null ? ` · máx. ${plazasDeCoche(coche)}` : ""}
                   </span>
                 )}
               </label>
@@ -856,7 +1067,11 @@ export default function PaginaCalculadora() {
           {gastos.map((gasto) => (
             <div key={gasto.clave} className="calculadora__gasto">
               <input
-                className="formulario__entrada"
+                className={
+                  !gasto.nombre.trim() && !gasto.importeTexto.trim()
+                    ? "formulario__entrada"
+                    : claseParpadeo(estadoGasto(gasto) === "invalido")
+                }
                 value={gasto.nombre}
                 onChange={(e) => {
                   const valor = e.target.value;
@@ -869,7 +1084,11 @@ export default function PaginaCalculadora() {
                 aria-label="Nombre del gasto"
               />
               <input
-                className="formulario__entrada calculadora__gastoImporte"
+                className={
+                  !gasto.nombre.trim() && !gasto.importeTexto.trim()
+                    ? "formulario__entrada calculadora__gastoImporte"
+                    : `${claseParpadeo(estadoGasto(gasto) === "invalido")} calculadora__gastoImporte`
+                }
                 value={gasto.importeTexto}
                 onChange={(e) => {
                   const valor = e.target.value;
@@ -920,11 +1139,9 @@ export default function PaginaCalculadora() {
                 </p>
               )}
               <article className="calculadora__recibo">
-                <p className="calculadora__reciboRuta">
-                  {[origen.trim(), destino.trim()].filter(Boolean).join(" → ") || "Viaje"}
-                </p>
+                <p className="calculadora__reciboRuta">{nombreCortoRuta(origen, destino)}</p>
                 <p className="textoSuave">
-                  {new Date().toLocaleDateString("es-ES")} ·{" "}
+                  {fechaCalculo ? `${formatearFecha(fechaCalculo)} · ` : ""}
                   {idaYVuelta ? "Ida y vuelta" : "Solo ida"} · {distanciaMostrada()} km ·{" "}
                   {pasajerosTotales()} persona{pasajerosTotales() === 1 ? "" : "s"}
                 </p>
@@ -932,12 +1149,13 @@ export default function PaginaCalculadora() {
                   <div key={coches[i]?.clave ?? i} className="calculadora__reciboCoche">
                     {esConvoy && (
                       <p className="calculadora__reciboConductor">
+                        <FontAwesomeIcon icon={faCar} />{" "}
                         {(coches[i]?.nombreConductor || `Coche ${i + 1}`).trim()}
                       </p>
                     )}
                     {!esConvoy && coches[0] && (
                       <p className="calculadora__reciboConductor">
-                        Conduce {(coches[0].nombreConductor || "—").trim()}
+                        <FontAwesomeIcon icon={faCar} /> {(coches[0].nombreConductor || "—").trim()}
                       </p>
                     )}
                     {nombreCocheElegido(perfil, coches[i]?.idCoche ?? "") && (
@@ -952,6 +1170,15 @@ export default function PaginaCalculadora() {
                   </div>
                 ))}
                 <p className="calculadora__reciboLogo">MiConvoy</p>
+                <button
+                  type="button"
+                  className="calculadora__reciboCompartir"
+                  onClick={alCompartir}
+                  aria-label="Compartir resultado"
+                  title="Compartir resultado"
+                >
+                  <FontAwesomeIcon icon={faShareNodes} />
+                </button>
               </article>
 
               <div className="calculadora__accionesResultado">
@@ -960,12 +1187,9 @@ export default function PaginaCalculadora() {
                     <FontAwesomeIcon icon={faCalculator} /> Recalcular
                   </button>
                 )}
-                <button type="button" className="formulario__botonSecundario" onClick={alCopiar}>
+                {/* <button type="button" className="formulario__botonSecundario" onClick={alCopiar}>
                   <FontAwesomeIcon icon={faCopy} /> {copiado ? "¡Copiado!" : "Copiar como texto"}
-                </button>
-                <button type="button" className="formulario__botonSecundario" onClick={alCompartir}>
-                  <FontAwesomeIcon icon={faShareNodes} /> Compartir
-                </button>
+                </button> */}
               </div>
 
               <p
@@ -980,14 +1204,9 @@ export default function PaginaCalculadora() {
                   }
                 }}
               >
-                {sinRedondeo ? "Aplicar redondeo" : "Quitar redondeo"}
+                {sinRedondeo ? "Añadir propina" : "Quitar propina"}
               </p>
 
-              {!guardado && !desactualizado && historialActivo && (
-                <button type="button" className="formulario__botonPrincipal" onClick={alFinalizar}>
-                  Finalizar viaje
-                </button>
-              )}
               {!guardado && !desactualizado && !historialActivo && (
                 <p className="textoSuave">
                   Historial desactivado: este viaje no se guardará. Actívalo en tu perfil si lo
@@ -995,7 +1214,16 @@ export default function PaginaCalculadora() {
                 </p>
               )}
               {guardado && !desactualizado && (
-                <p className="aviso">Viaje finalizado y guardado en tu historial.</p>
+                <>
+                  <p className="aviso">Viaje finalizado y guardado en tu historial.</p>
+                  <button
+                    type="button"
+                    className="formulario__botonSecundario"
+                    onClick={alVolverAlInicio}
+                  >
+                    <FontAwesomeIcon icon={faHouse} /> Volver al inicio
+                  </button>
+                </>
               )}
             </>
           )}
@@ -1003,13 +1231,12 @@ export default function PaginaCalculadora() {
       )}
 
       <nav className="calculadora__navegacion">
-        {paso > 0 && (
+        {paso > 0 && !(paso === 3 && resultado) && (
           <button
             type="button"
             className="formulario__botonSecundario"
             onClick={() => {
               setPaso((p) => p - 1);
-              setError(null);
             }}
           >
             <FontAwesomeIcon icon={faArrowLeft} /> Atrás
@@ -1025,9 +1252,20 @@ export default function PaginaCalculadora() {
             <FontAwesomeIcon icon={faCalculator} /> Calcular viaje
           </button>
         )}
-        {paso === 3 && resultado && (
-          <button type="button" className="formulario__botonSecundario" onClick={alReiniciar}>
-            <FontAwesomeIcon icon={faRotateRight} /> Reiniciar
+        {paso === 3 && resultado && !guardado && (
+          <button
+            type="button"
+            className="formulario__botonSecundario"
+            onClick={() => {
+              setPaso(0);
+            }}
+          >
+            <FontAwesomeIcon icon={faPen} /> Editar
+          </button>
+        )}
+        {paso === 3 && resultado && !guardado && !desactualizado && historialActivo && (
+          <button type="button" className="formulario__botonPrincipal" onClick={alFinalizar}>
+            <FontAwesomeIcon icon={faFlagCheckered} /> Finalizar viaje
           </button>
         )}
       </nav>
