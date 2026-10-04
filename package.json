@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.0.1",
   "scripts": {
-    "dev": "concurrently \"npm:scss:watch\" \"next dev\"",
+    "postinstall": "prisma generate",    "dev": "concurrently \"npm:scss:watch\" \"next dev\"",
     "build": "npm run scss && next build",
     "start": "next start",
     "scss": "sass src/scss/estilos.scss src/css/estilos.css --style=compressed --no-source-map",
