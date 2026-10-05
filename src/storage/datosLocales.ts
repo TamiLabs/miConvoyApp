@@ -4,11 +4,13 @@
 // PerfilLocal, definidas en tiposModoGratis.ts).
 
 import type { Almacenamiento } from "./almacenamiento";
+import type { ResultadoCalculo } from "../calculadora";
 import type { EntradaHistorial, PerfilLocal, UltimoViajeLocal } from "./tiposModoGratis";
 
 const CLAVE_HISTORIAL = "miconvoy_historial";
 const CLAVE_PERFIL = "miconvoy_perfil";
 const CLAVE_ULTIMO_VIAJE = "miconvoy_ultimo_viaje";
+const CLAVE_ULTIMO_RESULTADO = "miconvoy_ultimo_resultado";
 const CLAVE_HISTORIAL_ACTIVO = "miconvoy_historial_activo";
 const CLAVE_ULTIMO_CORREO = "miconvoy_ultimo_correo";
 const CLAVE_CREDENCIAL = "miconvoy_credencial";
@@ -67,6 +69,36 @@ export async function guardarUltimoViaje(
 
 export async function eliminarUltimoViaje(almacenamiento: Almacenamiento): Promise<void> {
   await almacenamiento.limpiar(CLAVE_ULTIMO_VIAJE);
+}
+
+// Último resultado calculado (con fecha, guardado y publicación), para
+// retomar el paso 4 tal cual al volver a la página.
+export interface UltimoResultadoLocal {
+  resultado: ResultadoCalculo[];
+  fechaCalculo: string;
+  guardado: boolean;
+  publicado: ViajeCreadoLocal | null;
+}
+
+export async function obtenerUltimoResultado(
+  almacenamiento: Almacenamiento,
+): Promise<UltimoResultadoLocal | null> {
+  const guardado = await almacenamiento.obtener<UltimoResultadoLocal>(CLAVE_ULTIMO_RESULTADO);
+  if (!guardado || !Array.isArray(guardado.resultado) || guardado.resultado.length === 0) {
+    return null;
+  }
+  return guardado;
+}
+
+export async function guardarUltimoResultado(
+  almacenamiento: Almacenamiento,
+  datos: UltimoResultadoLocal,
+): Promise<void> {
+  await almacenamiento.guardar(CLAVE_ULTIMO_RESULTADO, datos);
+}
+
+export async function eliminarUltimoResultado(almacenamiento: Almacenamiento): Promise<void> {
+  await almacenamiento.limpiar(CLAVE_ULTIMO_RESULTADO);
 }
 
 // El historial se puede desactivar desde el perfil: si está apagado, la
@@ -149,6 +181,14 @@ export async function obtenerHashContrasena(
   return almacenamiento.obtener<string>(CLAVE_CREDENCIAL);
 }
 
+// Viajes online creados en este dispositivo (id + token de edición).
+export interface ViajeCreadoLocal {
+  id: string;
+  tokenEdicion: string;
+}
+
+const CLAVE_VIAJES_CREADOS = "miconvoy_viajes_creados";
+
 // Ids del historial ya subidos al servidor (para no duplicar viajes).
 export async function obtenerIdsHistorialSubidos(
   almacenamiento: Almacenamiento,
@@ -161,4 +201,30 @@ export async function guardarIdsHistorialSubidos(
   ids: string[],
 ): Promise<void> {
   await almacenamiento.guardar(CLAVE_HISTORIAL_SUBIDO, ids);
+}
+
+export async function obtenerViajesCreados(
+  almacenamiento: Almacenamiento,
+): Promise<ViajeCreadoLocal[]> {
+  return (await almacenamiento.obtener<ViajeCreadoLocal[]>(CLAVE_VIAJES_CREADOS)) ?? [];
+}
+
+export async function guardarViajeCreado(
+  almacenamiento: Almacenamiento,
+  viaje: ViajeCreadoLocal,
+): Promise<void> {
+  const actuales = await obtenerViajesCreados(almacenamiento);
+  if (actuales.some((v) => v.id === viaje.id)) return;
+  await almacenamiento.guardar(CLAVE_VIAJES_CREADOS, [...actuales, viaje]);
+}
+
+export async function olvidarViajeCreado(
+  almacenamiento: Almacenamiento,
+  id: string,
+): Promise<void> {
+  const actuales = await obtenerViajesCreados(almacenamiento);
+  await almacenamiento.guardar(
+    CLAVE_VIAJES_CREADOS,
+    actuales.filter((v) => v.id !== id),
+  );
 }

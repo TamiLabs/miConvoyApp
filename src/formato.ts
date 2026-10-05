@@ -18,6 +18,15 @@ export function formatearFecha(fechaIso: string): string {
   return new Date(fechaIso).toLocaleDateString("es-ES");
 }
 
+// 207 → "3h 27min"; 45 → "45min"; 120 → "2h".
+export function formatearDuracion(minutos: number): string {
+  const horas = Math.floor(minutos / 60);
+  const resto = Math.round(minutos % 60);
+  if (horas === 0) return `${resto}min`;
+  if (resto === 0) return `${horas}h`;
+  return `${horas}h ${resto}min`;
+}
+
 // "Mi posición (38.97, -3.89)" → "Mi posición". El resto se deja igual.
 export function nombreCortoLugar(texto: string): string {
   const limpio = texto.trim();

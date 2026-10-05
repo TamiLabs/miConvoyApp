@@ -4,8 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const PESTANAS = [
-  { ruta: "/calculadora", etiqueta: "Calculadora" },
-  { ruta: "/online", etiqueta: "Online" },
+  { ruta: "/calculadora", etiqueta: "miConvoy" },
   { ruta: "/perfil", etiqueta: "Perfil" },
 ];
 

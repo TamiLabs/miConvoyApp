@@ -4,4 +4,60 @@
 
 .paginaEnLinea {
   @include tarjeta;
+  display: flex;
+  flex-direction: column;
+  gap: $espaciadoBase;
+}
+
+.plazas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.plaza {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-height: 4rem;
+  border-radius: $radioBorde;
+  border: 1px solid $colorBorde;
+  background-color: $colorTarjeta;
+  padding: 0.4rem 0.25rem;
+  cursor: pointer;
+}
+
+.plaza__numero {
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.plaza__nombre {
+  font-size: 0.75rem;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plaza--conductor {
+  background-color: $colorAviso;
+  border-color: $colorPrimario;
+  cursor: default;
+}
+
+.plaza--ocupada {
+  background-color: $colorFondo;
+  cursor: default;
+}
+
+.plaza--elegida {
+  border-color: $colorPrimario;
+  border-width: 2px;
+}
+
+.plaza:disabled {
+  cursor: default;
 }

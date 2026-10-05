@@ -101,6 +101,9 @@ model Viaje {
   // y permite comparar qué viajes le faltan al servidor.
   origenClienteId String? @unique
 
+  // Token del organizador para editar (se guarda en su dispositivo).
+  tokenEdicion String? @unique
+
   // Solo se genera cuando el viaje es un convoy en Modo Online.
   enlaceInvitacion String? @unique
 
@@ -109,6 +112,7 @@ model Viaje {
 
   coches CocheDelViaje[]
   gastos GastoAdicional[]
+  ocupantes Ocupante[]
 
   // Snapshot inmutable del resultado ya calculado (incluye el redondeo aplicado).
   // Si la fórmula de cálculo cambia en el futuro, este campo NO se recalcula:
@@ -130,6 +134,11 @@ model CocheDelViaje {
   conductorNombre           String
   incluirConductorEnReparto Boolean @default(true)
 
+  // Foto para viajes online sin Coche enlazado (manual o Snapshot).
+  consumo Float?
+  precio  Float?
+  plazas  Int?
+
   // Se usa cuando el viaje viene de Modo Free: solo se conoce el número de
   // pasajeros, no su identidad individual.
   numeroPasajerosLibre Int?
@@ -138,6 +147,26 @@ model CocheDelViaje {
   // Límite de 5 pasajeros por coche — validado en la lógica de negocio,
   // no como restricción de esquema.
   pasajeros Pasajero[]
+  ocupantes Ocupante[]
+}
+
+// Ocupante nominal de una plaza (sin cuenta): el conductor ocupa la plaza 1
+// al crear el viaje y el resto se eligen desde el enlace.
+model Ocupante {
+  id String @id @default(cuid())
+
+  viaje   Viaje  @relation(fields: [viajeId], references: [id], onDelete: Cascade)
+  viajeId String
+
+  cocheDelViaje   CocheDelViaje @relation(fields: [cocheDelViajeId], references: [id], onDelete: Cascade)
+  cocheDelViajeId String
+
+  plaza  Int // 1..plazas del coche (la 1 es del conductor)
+  nombre String
+
+  // Una plaza, un ocupante; un nombre, un solo coche por viaje.
+  @@unique([cocheDelViajeId, plaza])
+  @@unique([viajeId, nombre])
 }
 
 model Pasajero {

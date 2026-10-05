@@ -2,14 +2,21 @@
 
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowLeft,
   faArrowRight,
   faCalculator,
   faCar,
+  faCarAlt,
+  faCarBattery,
+  faCarCrash,
+  faCarOn,
+  faCloudArrowUp,
   faFlagCheckered,
   faHouse,
+  faLink,
   faLocationDot,
   faMinus,
   faPen,
@@ -23,19 +30,27 @@ import {
   anadirEntradaHistorial,
   eliminarUltimoViaje,
   guardarUltimoViaje,
+  guardarViajeCreado,
   obtenerHistorialActivo,
   obtenerPasoCalculadora,
   guardarPasoCalculadora,
   obtenerPerfil,
+  obtenerUltimoResultado,
+  guardarUltimoResultado,
+  eliminarUltimoResultado,
   obtenerUltimoViaje,
+  obtenerViajesCreados,
+  olvidarViajeCreado,
+  type ViajeCreadoLocal,
 } from "@/storage/datosLocales";
+import { useEstadoServidor } from "@/hooks/useEstadoServidor";
 import type {
   CocheDelViajeLocal,
   EntradaHistorial,
   GastoAdicionalLocal,
   PerfilLocal,
 } from "@/storage/tiposModoGratis";
-import { formatearEuros, formatearFecha, nombreCortoRuta } from "@/formato";
+import { formatearDuracion, formatearEuros, formatearFecha, nombreCortoRuta } from "@/formato";
 import { calcularConvoy, type ResultadoCalculo } from "@/calculadora";
 import { interpretarNumero } from "@/components/formularioCoche";
 import { CampoDireccion } from "@/components/campoDireccion";
@@ -45,6 +60,7 @@ import {
   estanCaidosLosMapas,
   type PuntoRuta,
 } from "@/mapas/openRouteService";
+import { faCaretSquareDown } from "@fortawesome/free-regular-svg-icons";
 
 const MapaViaje = dynamic(
   () => import("@/components/mapaViaje").then((modulo) => modulo.MapaViaje),
@@ -150,18 +166,30 @@ export default function PaginaCalculadora() {
   const [sinRedondeo, setSinRedondeo] = useState(false);
   const [fechaCalculo, setFechaCalculo] = useState<string | null>(null);
   const [historialActivo, setHistorialActivo] = useState(true);
+  const [publicado, setPublicado] = useState<ViajeCreadoLocal | null>(null);
+  const [publicando, setPublicando] = useState(false);
+  const [copiadoEnlace, setCopiadoEnlace] = useState(false);
+  const { disponible: servidorDisponible } = useEstadoServidor();
 
   useEffect(() => {
     (async () => {
-      const [perfilGuardado, ultimoViaje, activo, pasoGuardado] = await Promise.all([
-        obtenerPerfil(adaptadorAlmacenamientoLocal),
-        obtenerUltimoViaje(adaptadorAlmacenamientoLocal),
-        obtenerHistorialActivo(adaptadorAlmacenamientoLocal),
-        obtenerPasoCalculadora(adaptadorAlmacenamientoLocal),
-      ]);
+      const [perfilGuardado, ultimoViaje, activo, pasoGuardado, ultimoResultado] =
+        await Promise.all([
+          obtenerPerfil(adaptadorAlmacenamientoLocal),
+          obtenerUltimoViaje(adaptadorAlmacenamientoLocal),
+          obtenerHistorialActivo(adaptadorAlmacenamientoLocal),
+          obtenerPasoCalculadora(adaptadorAlmacenamientoLocal),
+          obtenerUltimoResultado(adaptadorAlmacenamientoLocal),
+        ]);
       setPerfil(perfilGuardado);
       setHistorialActivo(activo);
       setPaso(pasoGuardado);
+      if (ultimoResultado) {
+        setResultado(ultimoResultado.resultado);
+        setFechaCalculo(ultimoResultado.fechaCalculo);
+        setGuardado(ultimoResultado.guardado);
+        setPublicado(ultimoResultado.publicado);
+      }
       if (ultimoViaje) {
         setOrigen(ultimoViaje.origen);
         setDestino(ultimoViaje.destino);
@@ -317,7 +345,7 @@ export default function PaginaCalculadora() {
       setDistanciaTexto(String(Number(ruta.distanciaKm.toFixed(1))).replace(".", ","));
       setLineaRuta(ruta.linea);
       setInfoRuta(
-        `Ruta: ${ruta.distanciaKm.toFixed(1).replace(".", ",")} km · unos ${ruta.duracionMin} min`,
+        `Ruta: ${ruta.distanciaKm.toFixed(1).replace(".", ",")} km · ${formatearDuracion(ruta.duracionMin)}`,
       );
       tocar();
     } catch (e) {
@@ -618,7 +646,15 @@ export default function PaginaCalculadora() {
     setResultado(datos.resultados);
     setDesactualizado(false);
     setGuardado(false);
-    setFechaCalculo(new Date().toISOString());
+    setPublicado(null);
+    const fechaAhora = new Date().toISOString();
+    setFechaCalculo(fechaAhora);
+    await guardarUltimoResultado(adaptadorAlmacenamientoLocal, {
+      resultado: datos.resultados,
+      fechaCalculo: fechaAhora,
+      guardado: false,
+      publicado: null,
+    });
 
     setPaso(3);
 
@@ -672,6 +708,10 @@ export default function PaginaCalculadora() {
     };
     await anadirEntradaHistorial(adaptadorAlmacenamientoLocal, entrada);
     setGuardado(true);
+    const previo = await obtenerUltimoResultado(adaptadorAlmacenamientoLocal);
+    if (previo) {
+      await guardarUltimoResultado(adaptadorAlmacenamientoLocal, { ...previo, guardado: true });
+    }
   };
 
   const pasajerosTotales = (): number =>
@@ -746,6 +786,7 @@ export default function PaginaCalculadora() {
   // Vacía todo y vuelve al inicio para empezar un viaje de cero.
   const alVolverAlInicio = async () => {
     await eliminarUltimoViaje(adaptadorAlmacenamientoLocal);
+    await eliminarUltimoResultado(adaptadorAlmacenamientoLocal);
     setOrigen("");
     setDestino("");
     setOrigenPunto(null);
@@ -762,8 +803,76 @@ export default function PaginaCalculadora() {
     setGuardado(false);
     setSinRedondeo(false);
     setFechaCalculo(null);
+    setPublicado(null);
 
     setPaso(0);
+  };
+
+  // Publica el viaje calculado para apuntarse por enlace (requiere perfil).
+  const alPublicar = async () => {
+    if (!resultado || desactualizado || !perfil || !servidorDisponible) return;
+    const datos = construirDatosViaje();
+    setPublicando(true);
+    setNota(null);
+    try {
+      const respuesta = await fetch("/api/viajes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: perfil.correo,
+          nombre: perfil.nombre,
+          origen: origen.trim(),
+          destino: destino.trim(),
+          distanciaKm: datos.distanciaKm,
+          idaYVuelta,
+          incluirConductor: coches.every((c) => c.incluirConductor),
+          gastos: datos.gastosLimpios,
+          coches: coches.map((coche) => {
+            const elegido = perfil.coches.find((c) => c.id === coche.idCoche);
+            const ocupantes = Number.parseInt(coche.pasajerosTexto, 10) || 1;
+            return {
+              marca: elegido?.marca,
+              modelo: elegido?.modelo,
+              matricula: elegido?.matricula,
+              consumo: interpretarNumero(coche.consumoTexto) ?? 0,
+              precio: precioDeCoche(coche) ?? 0,
+              plazas: Math.min(9, Math.max(1, elegido?.plazas ?? ocupantes)),
+              conductorNombre: coche.nombreConductor.trim(),
+              incluirConductorEnReparto: coche.incluirConductor,
+            };
+          }),
+        }),
+      });
+      const respuestaDatos = await respuesta.json();
+      if (!respuesta.ok || !respuestaDatos.ok)
+        throw new Error(respuestaDatos.error ?? "No se pudo publicar.");
+      const ref = { id: respuestaDatos.id, tokenEdicion: respuestaDatos.tokenEdicion };
+      // Solo un viaje activo cada vez: se olvidan los anteriores.
+      const previos = await obtenerViajesCreados(adaptadorAlmacenamientoLocal);
+      for (const viejo of previos) {
+        if (viejo.id !== ref.id) await olvidarViajeCreado(adaptadorAlmacenamientoLocal, viejo.id);
+      }
+      await guardarViajeCreado(adaptadorAlmacenamientoLocal, ref);
+      setPublicado(ref);
+      const previo = await obtenerUltimoResultado(adaptadorAlmacenamientoLocal);
+      if (previo) {
+        await guardarUltimoResultado(adaptadorAlmacenamientoLocal, { ...previo, publicado: ref });
+      }
+    } catch (e) {
+      setNota(e instanceof Error ? e.message : "No se pudo publicar.");
+    }
+    setPublicando(false);
+  };
+
+  const alCopiarEnlaceOnline = async () => {
+    if (!publicado) return;
+    try {
+      await navigator.clipboard.writeText(`${window.location.origin}/online/${publicado.id}`);
+      setCopiadoEnlace(true);
+      setTimeout(() => setCopiadoEnlace(false), 2000);
+    } catch {
+      // Portapapeles no disponible.
+    }
   };
 
   if (cargando) return <p className="paginaCalculadora textoSuave">Cargando calculadora…</p>;
@@ -1224,6 +1333,43 @@ export default function PaginaCalculadora() {
                     <FontAwesomeIcon icon={faHouse} /> Volver al inicio
                   </button>
                 </>
+              )}
+              {servidorDisponible && resultado && !desactualizado && (
+                <div className="calculadora__online">
+                  <hr />
+                  <h3 className="paginaPerfil__subtitulo">Viaje online</h3>
+                  {!perfil ? (
+                    <p className="textoSuave">
+                      Crea tu perfil para publicar este viaje y compartirlo por enlace.{" "}
+                      <Link href="/perfil">Ir al perfil</Link>
+                    </p>
+                  ) : publicado ? (
+                    <div className="paginaPerfil__accionesCoche">
+                      <button
+                        type="button"
+                        className="formulario__botonSecundario"
+                        onClick={() => void alCopiarEnlaceOnline()}
+                      >
+                        <FontAwesomeIcon icon={faLink} />{" "}
+                        {copiadoEnlace ? "¡Copiado!" : "Copiar enlace"}
+                      </button>
+                      <Link className="formulario__botonPrincipal" href={`/online/${publicado.id}`}>
+                        <FontAwesomeIcon icon={faCloudArrowUp} /> Ver viaje online
+                      </Link>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="formulario__botonSecundario"
+                      onClick={() => void alPublicar()}
+                      disabled={publicando}
+                    >
+                      <FontAwesomeIcon icon={faCloudArrowUp} />{" "}
+                      {publicando ? "Publicando…" : "Publicar viaje online"}
+                    </button>
+                  )}
+                  <hr />
+                </div>
               )}
             </>
           )}

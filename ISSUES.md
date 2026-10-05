@@ -24,25 +24,9 @@ Criterios: script de test ejecutable sin levantar la app.
 
 ---
 
-## 5. Modo Online (`/online`, futuro con servidor)
+## 5. Modo Online (integrado en miConvoy)
 
-### 5.2 Crear viaje online + enlace de invitación — ⬜ Pendiente
-
-El organizador crea el convoy (requiere cuenta) y comparte enlace único (`enlaceInvitacion` ya existe en Prisma).
-Criterios: enlace copiable/compartible.
-
-### 5.3 Unirse al viaje: elegir o crear pasajero (máx. 5/coche) — ⬜ Pendiente
-
-Al abrir el enlace, identificarse eligiendo nombre existente o creando uno nuevo; validar límite de 5 en lógica, no en esquema.
-
-### 5.4 Varios coches por viaje + invitar más gente — ⬜ Pendiente
-
-Añadir coches al mismo viaje; cada coche puede invitar.
-Criterios: convoy = varios `CocheDelViaje` del mismo `Viaje`.
-
-### 5.5 Un pasajero, un solo coche por viaje — ⬜ Pendiente
-
-Aplicar índice único `(viajeId, personaId)` (ya en Prisma) con mensaje de error amable al intentarlo.
+Hecho y fuera de la lista: publicar viaje desde el resultado (con enlaces ver/editar), visor `/online/[id]` con autodetección de organizador, unirse por nombre con plazas numeradas, reparto en vivo, tiempo real con Ably y nombre único por viaje. Sin pestaña propia: todo vive en miConvoy.
 
 ### 5.6 Mapa en tiempo real del convoy — ⬜ Pendiente
 
@@ -96,7 +80,7 @@ El cálculo online debe llamar a las mismas funciones puras que el cliente.
 
 ### 8.4 Elegir proveedor de BBDD / tiempo real / hosting — ⬜ Pendiente
 
-MySQL gestionado (Railway, Aiven, PlanetScale…) + tiempo real (Pusher/Ably recomendado, o Socket.io autoalojado) + validación Zod.
+MySQL gestionado (Railway, Aiven, PlanetScale…) + tiempo real **Ably** (elegido: funciona en Netlify y en cualquier hosting, key solo en servidor + tokens por viaje) + validación Zod.
 Criterios: decisión documentada en README.
 
 ---
