@@ -931,7 +931,7 @@ export default function PaginaCalculadora() {
             botonExtra={
               <button
                 type="button"
-                className="formulario__botonSecundario"
+                className="botonSecundario"
                 onClick={alUsarPosicion}
                 disabled={localizando}
                 aria-label="Usar mi posición actual"
@@ -953,7 +953,7 @@ export default function PaginaCalculadora() {
             {!mapasCaidosUi && (
               <button
                 type="button"
-                className="formulario__botonSecundario"
+                className="botonSecundario"
                 onClick={alCalcularDistancia}
                 disabled={calculandoRuta || !origen.trim() || !destino.trim()}
                 aria-label="Calcular distancia automáticamente"
@@ -1039,7 +1039,7 @@ export default function PaginaCalculadora() {
           )}
           {coches.map((coche, i) => (
             <article key={coche.clave} className="calculadora__tarjetaCoche">
-              {esConvoy && <h3 className="paginaPerfil__subtitulo">Coche {i + 1}</h3>}
+              {esConvoy && <h3 className="tituloSeccion">Coche {i + 1}</h3>}
               <label className="formulario__campo">
                 <span className="formulario__etiqueta">Nombre del conductor</span>
                 <input
@@ -1214,7 +1214,7 @@ export default function PaginaCalculadora() {
               />
               <button
                 type="button"
-                className="formulario__botonSecundario"
+                className="botonSecundario"
                 onClick={() => {
                   setGastos((previos) => previos.filter((g) => g.clave !== gasto.clave));
                   tocar();
@@ -1225,7 +1225,7 @@ export default function PaginaCalculadora() {
               </button>
             </div>
           ))}
-          <button type="button" className="formulario__botonSecundario" onClick={alAnadirGasto}>
+          <button type="button" className="botonSecundario" onClick={alAnadirGasto}>
             <FontAwesomeIcon icon={faPlus} /> Añadir gasto
           </button>
         </div>
@@ -1236,7 +1236,7 @@ export default function PaginaCalculadora() {
           {!resultado ? (
             <>
               <p className="textoSuave">Revisa los pasos y pulsa «Calcular viaje».</p>
-              <button type="button" className="formulario__botonPrincipal" onClick={alCalcular}>
+              <button type="button" className="botonPrincipal" onClick={alCalcular}>
                 <FontAwesomeIcon icon={faCalculator} /> Calcular viaje
               </button>
             </>
@@ -1292,11 +1292,11 @@ export default function PaginaCalculadora() {
 
               <div className="calculadora__accionesResultado">
                 {desactualizado && (
-                  <button type="button" className="formulario__botonPrincipal" onClick={alCalcular}>
+                  <button type="button" className="botonPrincipal" onClick={alCalcular}>
                     <FontAwesomeIcon icon={faCalculator} /> Recalcular
                   </button>
                 )}
-                {/* <button type="button" className="formulario__botonSecundario" onClick={alCopiar}>
+                {/* <button type="button" className="botonSecundario" onClick={alCopiar}>
                   <FontAwesomeIcon icon={faCopy} /> {copiado ? "¡Copiado!" : "Copiar como texto"}
                 </button> */}
               </div>
@@ -1325,11 +1325,7 @@ export default function PaginaCalculadora() {
               {guardado && !desactualizado && (
                 <>
                   <p className="aviso">Viaje finalizado y guardado en tu historial.</p>
-                  <button
-                    type="button"
-                    className="formulario__botonSecundario"
-                    onClick={alVolverAlInicio}
-                  >
+                  <button type="button" className="botonSecundario" onClick={alVolverAlInicio}>
                     <FontAwesomeIcon icon={faHouse} /> Volver al inicio
                   </button>
                 </>
@@ -1337,30 +1333,30 @@ export default function PaginaCalculadora() {
               {servidorDisponible && resultado && !desactualizado && (
                 <div className="calculadora__online">
                   <hr />
-                  <h3 className="paginaPerfil__subtitulo">Viaje online</h3>
+                  <h3 className="tituloSeccion">Viaje online</h3>
                   {!perfil ? (
                     <p className="textoSuave">
                       Crea tu perfil para publicar este viaje y compartirlo por enlace.{" "}
                       <Link href="/perfil">Ir al perfil</Link>
                     </p>
                   ) : publicado ? (
-                    <div className="paginaPerfil__accionesCoche">
+                    <div className="grupoAcciones">
                       <button
                         type="button"
-                        className="formulario__botonSecundario"
+                        className="botonSecundario"
                         onClick={() => void alCopiarEnlaceOnline()}
                       >
                         <FontAwesomeIcon icon={faLink} />{" "}
                         {copiadoEnlace ? "¡Copiado!" : "Copiar enlace"}
                       </button>
-                      <Link className="formulario__botonPrincipal" href={`/online/${publicado.id}`}>
+                      <Link className="botonPrincipal" href={`/online/${publicado.id}`}>
                         <FontAwesomeIcon icon={faCloudArrowUp} /> Ver viaje online
                       </Link>
                     </div>
                   ) : (
                     <button
                       type="button"
-                      className="formulario__botonSecundario"
+                      className="botonSecundario"
                       onClick={() => void alPublicar()}
                       disabled={publicando}
                     >
@@ -1380,7 +1376,7 @@ export default function PaginaCalculadora() {
         {paso > 0 && !(paso === 3 && resultado) && (
           <button
             type="button"
-            className="formulario__botonSecundario"
+            className="botonSecundario"
             onClick={() => {
               setPaso((p) => p - 1);
             }}
@@ -1389,19 +1385,19 @@ export default function PaginaCalculadora() {
           </button>
         )}
         {paso < 2 && (
-          <button type="button" className="formulario__botonPrincipal" onClick={alSiguiente}>
+          <button type="button" className="botonPrincipal" onClick={alSiguiente}>
             Siguiente <FontAwesomeIcon icon={faArrowRight} />
           </button>
         )}
         {paso === 2 && (
-          <button type="button" className="formulario__botonPrincipal" onClick={alCalcular}>
+          <button type="button" className="botonPrincipal" onClick={alCalcular}>
             <FontAwesomeIcon icon={faCalculator} /> Calcular viaje
           </button>
         )}
         {paso === 3 && resultado && !guardado && (
           <button
             type="button"
-            className="formulario__botonSecundario"
+            className="botonSecundario"
             onClick={() => {
               setPaso(0);
             }}
@@ -1410,7 +1406,7 @@ export default function PaginaCalculadora() {
           </button>
         )}
         {paso === 3 && resultado && !guardado && !desactualizado && historialActivo && (
-          <button type="button" className="formulario__botonPrincipal" onClick={alFinalizar}>
+          <button type="button" className="botonPrincipal" onClick={alFinalizar}>
             <FontAwesomeIcon icon={faFlagCheckered} /> Finalizar viaje
           </button>
         )}

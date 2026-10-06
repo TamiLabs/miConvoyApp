@@ -20,8 +20,8 @@ export function HistorialPerfil({
 }: PropiedadesHistorialPerfil) {
   return (
     <section aria-label="Historial" className="paginaPerfil__apartado">
-      <h3 className="paginaPerfil__subtitulo">Historial</h3>
-      <label className="paginaPerfil__interruptor">
+      <h3 className="tituloSeccion">Historial</h3>
+      <label className="interruptor">
         <input
           type="checkbox"
           checked={activo}
@@ -38,16 +38,16 @@ export function HistorialPerfil({
         <p className="textoSuave">Aún no hay viajes guardados en este dispositivo.</p>
       ) : (
         <>
-          <div className="paginaPerfil__cochesCabecera">
+          <div className="cabeceraSeccion">
             <p className="textoSuave">Viajes guardados ({historial.length}/10)</p>
-            <button type="button" className="paginaPerfil__botonEliminar" onClick={alVaciar}>
+            <button type="button" className="botonSutil" onClick={alVaciar}>
               <FontAwesomeIcon icon={faTrash} /> Vaciar
             </button>
           </div>
-          <div className="paginaPerfil__coches">
+          <div className="listaTarjetas">
             {historial.map((entrada) => (
-              <article key={entrada.id} className="paginaPerfil__tarjetaCoche">
-                <p className="paginaPerfil__cocheTitulo">
+              <article key={entrada.id} className="tarjeta">
+                <p className="tarjeta__titulo">
                   {nombreCortoRuta(entrada.origen, entrada.destino)}
                 </p>
                 <p className="textoSuave">

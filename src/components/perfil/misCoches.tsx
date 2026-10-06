@@ -29,7 +29,7 @@ export function MisCoches({
 
   return (
     <section aria-label="Mis coches" className="paginaPerfil__apartado">
-      <label className="paginaPerfil__interruptor">
+      <label className="interruptor">
         <input
           type="checkbox"
           checked={tieneCoche}
@@ -40,11 +40,11 @@ export function MisCoches({
 
       {tieneCoche ? (
         <>
-          <div className="paginaPerfil__cochesCabecera">
-            <h3 className="paginaPerfil__subtitulo">Mis coches ({perfil.coches.length})</h3>
+          <div className="cabeceraSeccion">
+            <h3 className="tituloSeccion">Mis coches ({perfil.coches.length})</h3>
             <button
               type="button"
-              className="paginaPerfil__botonAnadir"
+              className="botonAnadir"
               onClick={alAbrirAlta}
               aria-label="Añadir coche"
             >
@@ -64,10 +64,10 @@ export function MisCoches({
               Todavía no tienes coches. Pulsa el botón de añadir para dar de alta el primero.
             </p>
           ) : (
-            <div className="paginaPerfil__coches">
+            <div className="listaTarjetas">
               {perfil.coches.map((coche) => (
-                <article key={coche.id} className="paginaPerfil__tarjetaCoche">
-                  <h4 className="paginaPerfil__cocheTitulo">
+                <article key={coche.id} className="tarjeta">
+                  <h4 className="tarjeta__titulo">
                     {coche.marca} {coche.modelo}
                   </h4>
                   <p className="textoSuave">{coche.matricula}</p>
@@ -78,10 +78,10 @@ export function MisCoches({
                       ? `${formatearEuros(coche.precioPorLitro)} · ${ETIQUETAS_COMBUSTIBLE[coche.tipoCombustible] ?? coche.tipoCombustible}`
                       : "Sin precio: edita el coche para añadirlo"}
                   </p>
-                  <div className="paginaPerfil__accionesCoche">
+                  <div className="grupoAcciones">
                     <button
                       type="button"
-                      className="paginaPerfil__botonSecundario"
+                      className="botonSecundario"
                       onClick={() => alAbrirEdicion(coche)}
                       aria-label={`Editar ${coche.marca} ${coche.modelo}`}
                     >
@@ -89,7 +89,7 @@ export function MisCoches({
                     </button>
                     <button
                       type="button"
-                      className="paginaPerfil__botonEliminar"
+                      className="botonSutil"
                       onClick={() => alEliminarCoche(coche.id)}
                     >
                       <FontAwesomeIcon icon={faTrash} /> Eliminar

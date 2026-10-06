@@ -36,11 +36,7 @@ export default function PaginaVerViaje({ params }: { params: { id: string } }) {
     return (
       <section className="paginaEnLinea">
         <p className="aviso">{error ?? "Viaje no encontrado."}</p>
-        <button
-          type="button"
-          className="formulario__botonSecundario"
-          onClick={() => void recargar()}
-        >
+        <button type="button" className="botonSecundario" onClick={() => void recargar()}>
           Reintentar
         </button>
       </section>
@@ -52,17 +48,17 @@ export default function PaginaVerViaje({ params }: { params: { id: string } }) {
 
   return (
     <section className="paginaEnLinea">
-      <h2 className="paginaPerfil__subtitulo">
+      <h2 className="tituloSeccion">
         {viaje.origen} → {viaje.destino}
       </h2>
       <p className="textoSuave">
         {viaje.fecha ? `${new Date(viaje.fecha).toLocaleDateString("es-ES")} · ` : ""}
         {viaje.idaYVuelta ? "Ida y vuelta" : "Solo ida"} · {viaje.distanciaKm} km
       </p>
-      <button type="button" className="formulario__botonSecundario" onClick={alCopiarEnlace}>
+      <button type="button" className="botonSecundario" onClick={alCopiarEnlace}>
         <FontAwesomeIcon icon={faLink} /> {copiado ? "¡Copiado!" : "Copiar enlace"}
       </button>
-      <div className="paginaPerfil__coches">
+      <div className="listaTarjetas">
         {viaje.coches.map((coche) => (
           <TarjetaCocheOnline
             key={coche.id}
@@ -77,7 +73,7 @@ export default function PaginaVerViaje({ params }: { params: { id: string } }) {
       </div>
       {viaje.gastos.length > 0 && (
         <>
-          <h3 className="paginaPerfil__subtitulo">Gastos compartidos</h3>
+          <h3 className="tituloSeccion">Gastos compartidos</h3>
           {viaje.gastos.map((gasto, i) => (
             <p key={i} className="textoSuave">
               {gasto.nombre}: {formatearEuros(gasto.importe)}

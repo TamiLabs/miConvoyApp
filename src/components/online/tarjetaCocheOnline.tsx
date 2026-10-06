@@ -2,7 +2,14 @@
 
 import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCheck, faUserMinus, faXmark } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCheck,
+  faCircle,
+  faCircleDot,
+  faLifeRing,
+  faUserMinus,
+  faXmark,
+} from "@fortawesome/free-solid-svg-icons";
 import { formatearEuros } from "@/formato";
 import type { CocheVista } from "@/hooks/useViaje";
 
@@ -30,6 +37,12 @@ export function TarjetaCocheOnline({
 
   const ocupanteDe = (plaza: number) => coche.ocupantes.find((o) => o.plaza === plaza);
   const libres = coche.plazas - coche.ocupantes.length;
+
+  // Como un coche real: primera fila de 2, resto en filas de 3. La plaza 1
+  // (delantera izquierda) es la del conductor, con su volante.
+  const asientos = Array.from({ length: coche.plazas }, (_, k) => k + 1);
+  const filasAsientos: number[][] = [asientos.slice(0, 2)];
+  for (let i = 2; i < asientos.length; i += 3) filasAsientos.push(asientos.slice(i, i + 3));
 
   const llamar = async (ruta: string, cuerpo: object): Promise<boolean> => {
     setOcupado(true);
@@ -71,45 +84,60 @@ export function TarjetaCocheOnline({
     tokenEdicion && llamar(`/api/viajes/${viajeId}/expulsar`, { ocupanteId, tokenEdicion });
 
   return (
-    <article className="paginaPerfil__tarjetaCoche">
+    <article className="tarjeta">
       {esConvoy && (
-        <h4 className="paginaPerfil__cocheTitulo">
+        <h4 className="tarjeta__titulo">
           {coche.marca ? `${coche.marca} ${coche.modelo ?? ""}`.trim() : "Coche"} ·{" "}
           {coche.conductorNombre}
         </h4>
       )}
-      {!esConvoy && <h4 className="paginaPerfil__cocheTitulo">Conduce {coche.conductorNombre}</h4>}
+      {!esConvoy && <h4 className="tarjeta__titulo">Conduce {coche.conductorNombre}</h4>}
       <p className="textoSuave">
         {coche.total} de {coche.plazas} plazas · {formatearEuros(coche.costePorPersona)} por persona
       </p>
-      <div className="plazas">
-        {Array.from({ length: coche.plazas }, (_, k) => k + 1).map((plaza) => {
-          const ocupante = ocupanteDe(plaza);
-          const esConductor = plaza === 1;
-          return (
-            <button
-              key={plaza}
-              type="button"
-              disabled={!!ocupante || ocupado}
-              onClick={() => setPlazaElegida(plazaElegida === plaza ? null : plaza)}
-              className={
-                ocupante
-                  ? esConductor
-                    ? "plaza plaza--conductor"
-                    : "plaza plaza--ocupada"
-                  : plazaElegida === plaza
-                    ? "plaza plaza--elegida"
-                    : "plaza plaza--libre"
-              }
-              aria-label={
-                ocupante ? `Plaza ${plaza}: ${ocupante.nombre}` : `Plaza ${plaza} libre, elegir`
-              }
-            >
-              <span className="plaza__numero">{plaza}</span>
-              <span className="plaza__nombre">{ocupante?.nombre ?? ""}</span>
-            </button>
-          );
-        })}
+      <div
+        className="cocheSimulado"
+        role="group"
+        aria-label={`Asientos del coche de ${coche.conductorNombre}`}
+      >
+        <div className="cocheSimulado__luna" aria-hidden="true" />
+        {filasAsientos.map((fila, fi) => (
+          <div key={fi} className="cocheSimulado__fila">
+            {fila.map((plaza) => {
+              const ocupante = ocupanteDe(plaza);
+              const esConductor = plaza === 1;
+              return (
+                <button
+                  key={plaza}
+                  type="button"
+                  disabled={!!ocupante || ocupado}
+                  onClick={() => setPlazaElegida(plazaElegida === plaza ? null : plaza)}
+                  className={
+                    ocupante
+                      ? esConductor
+                        ? "plaza plaza--conductor"
+                        : "plaza plaza--ocupada"
+                      : plazaElegida === plaza
+                        ? "plaza plaza--elegida"
+                        : "plaza plaza--libre"
+                  }
+                  aria-label={
+                    ocupante ? `Plaza ${plaza}: ${ocupante.nombre}` : `Plaza ${plaza} libre, elegir`
+                  }
+                >
+                  <span className="plaza__numero">
+                    {esConductor && (
+                      <FontAwesomeIcon icon={faCircleDot} className="plaza__volante" />
+                    )}{" "}
+                    {plaza}
+                  </span>
+
+                  <span className="plaza__nombre">{ocupante?.nombre ?? ""}</span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
       {plazaElegida !== null && !ocupanteDe(plazaElegida) && (
         <div className="formulario">
@@ -124,7 +152,7 @@ export function TarjetaCocheOnline({
           </label>
           <button
             type="button"
-            className="formulario__botonPrincipal"
+            className="botonPrincipal"
             onClick={alReservar}
             disabled={ocupado || !nombre.trim()}
           >
@@ -152,7 +180,7 @@ export function TarjetaCocheOnline({
             <div className="formulario__acciones">
               <button
                 type="button"
-                className="formulario__botonSecundario"
+                className="botonSecundario"
                 onClick={() => {
                   const ocupante = ocupanteDe(plazaElegida);
                   if (ocupante) void alLiberar(ocupante.id);
@@ -164,7 +192,7 @@ export function TarjetaCocheOnline({
               {organizador && (
                 <button
                   type="button"
-                  className="paginaPerfil__botonEliminar"
+                  className="botonSutil"
                   onClick={() => {
                     const ocupante = ocupanteDe(plazaElegida);
                     if (ocupante) void alExpulsar(ocupante.id);

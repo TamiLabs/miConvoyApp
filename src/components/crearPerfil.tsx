@@ -80,7 +80,7 @@ export function CrearPerfil({ alCrear, correoInicial = "" }: PropiedadesCrearPer
 
   return (
     <div className="paginaPerfil__crear">
-      <h2 className="paginaPerfil__subtitulo">Inicia sesión</h2>
+      <h2 className="tituloSeccion">Inicia sesión</h2>
       <p className="textoSuave">Sin perfil no se puede guardar ningún coche.</p>
       {idClienteGoogle ? (
         <GoogleOAuthProvider clientId={idClienteGoogle}>
@@ -112,7 +112,7 @@ export function CrearPerfil({ alCrear, correoInicial = "" }: PropiedadesCrearPer
           />
         </label>
         {error ? <p className="formulario__error">{error}</p> : null}
-        <button type="submit" className="formulario__botonPrincipal">
+        <button type="submit" className="botonPrincipal">
           <FontAwesomeIcon icon={faUserPlus} /> Crear perfil
         </button>
       </form>

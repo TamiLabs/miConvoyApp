@@ -1,8 +1,8 @@
 export function LibreriasPerfil() {
   return (
     <section aria-label="Tecnologías" className="paginaPerfil__apartado">
-      <h3 className="paginaPerfil__subtitulo">Tecnologías</h3>
-      <p className="textoSuave paginaPerfil__nota">
+      <h3 className="tituloSeccion">Tecnologías</h3>
+      <p className="textoSuave textoNota">
         Esta app usa las siguientes tecnologías y servicios, con sus licencias:
       </p>
       <ul className="paginaPerfil__legalLista">

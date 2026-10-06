@@ -187,7 +187,7 @@ export default function PaginaPerfil() {
     return (
       <section className="paginaPerfil">
         <CrearPerfil alCrear={alCrearPerfil} correoInicial={ultimoCorreo} />
-        <p className="textoSuave paginaPerfil__nota">
+        <p className="textoSuave textoNota">
           Tus datos se guardan solo en este dispositivo. Si borras la caché o los datos de
           navegación, se perderán.
         </p>
@@ -331,16 +331,12 @@ export default function PaginaPerfil() {
       >
         <p>{confirmacion?.mensaje}</p>
         <div className="formulario__acciones">
-          <button
-            type="button"
-            className="formulario__botonSecundario"
-            onClick={() => setConfirmacion(null)}
-          >
+          <button type="button" className="botonSecundario" onClick={() => setConfirmacion(null)}>
             <FontAwesomeIcon icon={faXmark} /> Cancelar
           </button>
           <button
             type="button"
-            className="formulario__botonPrincipal"
+            className="botonPrincipal"
             onClick={() => {
               const accion = confirmacion?.alConfirmar;
               setConfirmacion(null);

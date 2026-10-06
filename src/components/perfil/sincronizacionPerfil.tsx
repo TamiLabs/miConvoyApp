@@ -159,7 +159,7 @@ export function SincronizacionPerfil({
 
   return (
     <section aria-label="Sincronización" className="paginaPerfil__apartado">
-      <h3 className="paginaPerfil__subtitulo">Sincronización</h3>
+      <h3 className="tituloSeccion">Sincronización</h3>
       {cargando || comprobando ? (
         <p className="textoSuave">
           {" "}
@@ -173,10 +173,10 @@ export function SincronizacionPerfil({
               <p className="aviso">
                 Problemas para conectar con el servidor. Comprueba tu conexión y reintenta.
               </p>
-              <div className="paginaPerfil__accionesCoche">
+              <div className="grupoAcciones">
                 <button
                   type="button"
-                  className="formulario__botonSecundario"
+                  className="botonSecundario"
                   onClick={() => {
                     recomprobar();
                     void comprobar();
@@ -194,10 +194,10 @@ export function SincronizacionPerfil({
         </p>
       ) : (
         <>
-          <div className="paginaPerfil__accionesCoche">
+          <div className="grupoAcciones">
             <button
               type="button"
-              className={hayCambios ? "formulario__botonPrincipal" : "formulario__botonSecundario"}
+              className={hayCambios ? "botonPrincipal" : "botonSecundario"}
               onClick={alPulsarSubir}
               disabled={!hayCambios || subiendo}
               title={hayCambios ? undefined : "Sin diferencias con el servidor"}
@@ -224,16 +224,12 @@ export function SincronizacionPerfil({
       >
         <p>{vistaSubida?.tipo === "confirmar" ? vistaSubida.mensaje : ""}</p>
         <div className="formulario__acciones">
-          <button
-            type="button"
-            className="formulario__botonSecundario"
-            onClick={() => setVistaSubida(null)}
-          >
+          <button type="button" className="botonSecundario" onClick={() => setVistaSubida(null)}>
             <FontAwesomeIcon icon={faXmark} /> Cancelar
           </button>
           <button
             type="button"
-            className="formulario__botonPrincipal"
+            className="botonPrincipal"
             onClick={alConfirmarSoloPerfil}
             disabled={subiendo}
           >
@@ -257,16 +253,12 @@ export function SincronizacionPerfil({
       >
         <p>{vistaSubida?.tipo === "reintentar" ? vistaSubida.mensaje : ""}</p>
         <div className="formulario__acciones">
-          <button
-            type="button"
-            className="formulario__botonSecundario"
-            onClick={() => setVistaSubida(null)}
-          >
+          <button type="button" className="botonSecundario" onClick={() => setVistaSubida(null)}>
             <FontAwesomeIcon icon={faXmark} /> Cancelar
           </button>
           <button
             type="button"
-            className="formulario__botonPrincipal"
+            className="botonPrincipal"
             onClick={() => {
               setVistaSubida(null);
               recomprobar();
@@ -291,11 +283,7 @@ export function SincronizacionPerfil({
           {vistaSubida?.tipo === "resultado" ? vistaSubida.mensaje : ""}
         </p>
         <div className="formulario__acciones">
-          <button
-            type="button"
-            className="formulario__botonPrincipal"
-            onClick={() => setVistaSubida(null)}
-          >
+          <button type="button" className="botonPrincipal" onClick={() => setVistaSubida(null)}>
             <FontAwesomeIcon icon={faCheck} /> Cerrar
           </button>
         </div>

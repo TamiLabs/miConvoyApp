@@ -30,11 +30,11 @@ export function CuentaPerfil({ ultimoCorreo, alOlvidar }: PropiedadesCuentaPerfi
 
   return (
     <section aria-label="Cuenta" className="paginaPerfil__apartado">
-      <h3 className="paginaPerfil__subtitulo">Cuenta</h3>
-      <div className="paginaPerfil__accionesCoche">
+      <h3 className="tituloSeccion">Cuenta</h3>
+      <div className="grupoAcciones">
         <button
           type="button"
-          className="formulario__botonSecundario"
+          className="botonSecundario"
           onClick={() => {
             setMensajeContrasena(null);
             setPopupContrasena(true);
@@ -43,7 +43,7 @@ export function CuentaPerfil({ ultimoCorreo, alOlvidar }: PropiedadesCuentaPerfi
           <FontAwesomeIcon icon={faKey} />{" "}
           {hayContrasena ? "Cambiar contraseña" : "Crear contraseña"}
         </button>
-        <button type="button" className="paginaPerfil__botonEliminar" onClick={alOlvidar}>
+        <button type="button" className="botonSutil" onClick={alOlvidar}>
           <FontAwesomeIcon icon={faRightFromBracket} /> Cerrar sesión
         </button>
       </div>

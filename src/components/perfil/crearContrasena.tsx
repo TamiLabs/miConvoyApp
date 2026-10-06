@@ -162,18 +162,14 @@ export function CrearContrasena({
             <p className="formulario__error">Las contraseñas no coinciden.</p>
           ))}
         {error ? <p className="formulario__error">{error}</p> : null}
-        <p className="textoSuave paginaPerfil__nota">
+        <p className="textoSuave textoNota">
           Se guarda solo en este dispositivo hasta que exista el registro con servidor.
         </p>
         <div className="formulario__acciones">
-          <button type="button" className="formulario__botonSecundario" onClick={alCerrarVentana}>
+          <button type="button" className="botonSecundario" onClick={alCerrarVentana}>
             <FontAwesomeIcon icon={faXmark} /> Cancelar
           </button>
-          <button
-            type="submit"
-            className="formulario__botonPrincipal"
-            disabled={!valida || guardando}
-          >
+          <button type="submit" className="botonPrincipal" disabled={!valida || guardando}>
             <FontAwesomeIcon icon={faCheck} /> {guardando ? "Guardando…" : "Guardar"}
           </button>
         </div>

@@ -196,10 +196,10 @@ export function FormularioCoche({
       </label>
       {error ? <p className="formulario__error">{error}</p> : null}
       <div className="formulario__acciones">
-        <button type="button" className="formulario__botonSecundario" onClick={alCancelar}>
+        <button type="button" className="botonSecundario" onClick={alCancelar}>
           <FontAwesomeIcon icon={faXmark} /> Cancelar
         </button>
-        <button type="submit" className="formulario__botonPrincipal">
+        <button type="submit" className="botonPrincipal">
           <FontAwesomeIcon icon={faCheck} /> {textoBoton}
         </button>
       </div>

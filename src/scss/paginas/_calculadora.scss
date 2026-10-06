@@ -109,7 +109,7 @@
   min-width: 0;
 }
 
-.calculadora__distanciaFila .formulario__botonSecundario {
+.calculadora__distanciaFila .botonSecundario {
   flex-shrink: 0;
   min-width: 2.75rem;
 }
@@ -192,8 +192,8 @@
   // Estilos propios del botón +.
 }
 
-.calculadora__navegacion .formulario__botonPrincipal,
-.calculadora__navegacion .formulario__botonSecundario {
+.calculadora__navegacion .botonPrincipal,
+.calculadora__navegacion .botonSecundario {
   flex: 1;
   min-height: 2.75rem;
 }

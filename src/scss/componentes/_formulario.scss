@@ -60,22 +60,3 @@
   gap: 0.5rem;
   justify-content: flex-end;
 }
-
-.formulario__botonPrincipal {
-  background-color: $colorPrimario;
-  color: #fff;
-  border: none;
-  border-radius: $radioBorde;
-  padding: 0.6rem 1rem;
-  min-height: 2.75rem;
-  cursor: pointer;
-}
-
-.formulario__botonSecundario {
-  background-color: transparent;
-  border: 1px solid $colorBorde;
-  border-radius: $radioBorde;
-  padding: 0.6rem 1rem;
-  min-height: 2.75rem;
-  cursor: pointer;
-}

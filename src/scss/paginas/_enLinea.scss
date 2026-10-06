@@ -9,10 +9,32 @@
   gap: $espaciadoBase;
 }
 
-.plazas {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(4.5rem, 1fr));
+.cocheSimulado {
+  border: 1px solid $colorBorde;
+  border-radius: 2.5rem 2.5rem $radioBorde $radioBorde;
+  background-color: $colorTarjeta;
+  padding: 0 0 0.75rem;
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
+}
+
+.cocheSimulado__luna {
+  height: 1.5rem;
+  margin: 0 1.5rem;
+  border-radius: 1.25rem 1.25rem 0 0;
+  background-color: $colorBorde;
+}
+
+.cocheSimulado__fila {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.cocheSimulado__fila .plaza {
+  flex: 1;
+  max-width: 7rem;
 }
 
 .plaza {
@@ -40,6 +62,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.plaza__volante {
+  font-size: 0.8rem;
+  color: $colorTextoSuave;
 }
 
 .plaza--conductor {
