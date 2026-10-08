@@ -922,6 +922,7 @@ export default function PaginaCalculadora() {
       {paso === 0 && (
         <div className="formulario">
           <CampoDireccion
+            id="origen-viaje"
             etiqueta="Origen"
             valor={origen}
             placeholder="¿Desde dónde salís?"
@@ -941,6 +942,7 @@ export default function PaginaCalculadora() {
             }
           />
           <CampoDireccion
+            id="destino-viaje"
             etiqueta="Destino"
             valor={destino}
             placeholder="¿A dónde vais?"

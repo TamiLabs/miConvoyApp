@@ -181,6 +181,10 @@ export async function obtenerHashContrasena(
   return almacenamiento.obtener<string>(CLAVE_CREDENCIAL);
 }
 
+export async function eliminarHashContrasena(almacenamiento: Almacenamiento): Promise<void> {
+  await almacenamiento.limpiar(CLAVE_CREDENCIAL);
+}
+
 // Viajes online creados en este dispositivo (id + token de edición).
 export interface ViajeCreadoLocal {
   id: string;
@@ -207,6 +211,10 @@ export async function obtenerViajesCreados(
   almacenamiento: Almacenamiento,
 ): Promise<ViajeCreadoLocal[]> {
   return (await almacenamiento.obtener<ViajeCreadoLocal[]>(CLAVE_VIAJES_CREADOS)) ?? [];
+}
+
+export async function olvidarViajesCreados(almacenamiento: Almacenamiento): Promise<void> {
+  await almacenamiento.limpiar(CLAVE_VIAJES_CREADOS);
 }
 
 export async function guardarViajeCreado(

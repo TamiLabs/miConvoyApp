@@ -2,24 +2,30 @@ import { NextResponse, type NextRequest } from "next/server";
 import { baseDatos } from "@/db";
 import { publicarPlazas } from "@/tiempoReal";
 
-// Libera tu propia plaza (debes escribir el mismo nombre con el que la cogiste).
+// Libera una plaza ocupada. Solo el organizador puede gestionarla.
 export const dynamic = "force-dynamic";
 
 export async function POST(peticion: NextRequest, { params }: { params: { id: string } }) {
   if (process.env.SERVER_ON !== "true") {
     return NextResponse.json({ ok: false, error: "Modo online desactivado." }, { status: 503 });
   }
-  let cuerpo: { ocupanteId?: string; nombre?: string };
+  let cuerpo: { ocupanteId?: string; tokenEdicion?: string };
   try {
-    cuerpo = (await peticion.json()) as { ocupanteId?: string; nombre?: string };
+    cuerpo = (await peticion.json()) as { ocupanteId?: string; tokenEdicion?: string };
   } catch {
     return NextResponse.json({ ok: false, error: "Cuerpo inválido." }, { status: 400 });
   }
-  const nombre = cuerpo.nombre?.trim();
-  if (!cuerpo.ocupanteId || !nombre) {
-    return NextResponse.json({ ok: false, error: "Faltan plaza y nombre." }, { status: 400 });
+  if (!cuerpo.ocupanteId || !cuerpo.tokenEdicion) {
+    return NextResponse.json({ ok: false, error: "Faltan la plaza y el permiso del organizador." }, { status: 400 });
   }
   try {
+    const viaje = await baseDatos.viaje.findUnique({
+      where: { id: params.id },
+      select: { tokenEdicion: true },
+    });
+    if (!viaje || viaje.tokenEdicion !== cuerpo.tokenEdicion) {
+      return NextResponse.json({ ok: false, error: "Solo el organizador puede liberar plazas." }, { status: 403 });
+    }
     const ocupante = await baseDatos.ocupante.findFirst({
       where: { id: cuerpo.ocupanteId, viajeId: params.id },
     });
@@ -30,12 +36,6 @@ export async function POST(peticion: NextRequest, { params }: { params: { id: st
       return NextResponse.json(
         { ok: false, error: "La plaza del conductor la gestiona el organizador." },
         { status: 400 },
-      );
-    }
-    if (ocupante.nombre.toLowerCase() !== nombre.toLowerCase()) {
-      return NextResponse.json(
-        { ok: false, error: "Ese no es tu nombre: solo puedes liberar tu plaza." },
-        { status: 403 },
       );
     }
     await baseDatos.ocupante.delete({ where: { id: ocupante.id } });

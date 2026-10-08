@@ -1,16 +1,20 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { consultarORS, respuestaLimiteORS } from "@/mapas/proteccionORS";
 
 // Proxy a OpenRouteService Geocode: evita el CORS del navegador y no expone la key.
-// Devuelve SIEMPRE 200 (con ok:false si falla) para no ensuciar la consola:
-// un fallo aquí es esperado (sin key, sin cuota, sin red) y la app lo gestiona.
+// Los fallos del proveedor se devuelven como ok:false para que la app permita
+// continuar manualmente. La validación y el límite temporal usan sus HTTP status.
 export const dynamic = "force-dynamic";
 
 export async function GET(peticion: NextRequest) {
   const texto = peticion.nextUrl.searchParams.get("text")?.trim();
-  if (!texto) {
-    return NextResponse.json({ ok: false, error: "Escribe una dirección." });
+  if (!texto || texto.length < 3 || texto.length > 120 || /[\u0000-\u001f\u007f]/.test(texto)) {
+    return NextResponse.json(
+      { ok: false, error: "Escribe una dirección de entre 3 y 120 caracteres." },
+      { status: 400 },
+    );
   }
-  const clave = process.env.ORS_API_KEY ?? process.env.NEXT_PUBLIC_ORS_API_KEY ?? "";
+  const clave = process.env.ORS_API_KEY ?? "";
   if (!clave) {
     return NextResponse.json({
       ok: false,
@@ -22,9 +26,25 @@ export async function GET(peticion: NextRequest) {
     `https://api.openrouteservice.org/geocode/autocomplete` +
     `?api_key=${clave}&text=${encodeURIComponent(texto)}` +
     `&size=5&lang=es`;
-  let respuesta: Response;
+  let datos: {
+    features?: {
+      properties?: { id?: string; label?: string; name?: string };
+      geometry?: { coordinates?: [number, number] };
+    }[];
+  };
   try {
-    respuesta = await fetch(url);
+    const consulta = await consultarORS(
+      peticion,
+      `geocode:${texto.normalize("NFKC").toLocaleLowerCase("es").replace(/\s+/g, " ")}`,
+      6 * 60 * 60 * 1000,
+      async () => {
+        const respuesta = await fetch(url, { signal: AbortSignal.timeout(8000) });
+        if (!respuesta.ok) throw new Error("OpenRouteService no disponible.");
+        return (await respuesta.json()) as typeof datos;
+      },
+    );
+    if (consulta.limitado) return respuestaLimiteORS(consulta.esperaSegundos);
+    datos = consulta.datos;
   } catch {
     return NextResponse.json({
       ok: false,
@@ -32,14 +52,6 @@ export async function GET(peticion: NextRequest) {
       servicioCaido: true,
     });
   }
-  if (!respuesta.ok) {
-    return NextResponse.json({
-      ok: false,
-      error: "No se pudo buscar la dirección. Comprueba tu conexión.",
-      servicioCaido: true,
-    });
-  }
-  const datos = await respuesta.json();
   const sugerencias = (
     (datos.features ?? []) as {
       properties?: { id?: string; label?: string; name?: string };

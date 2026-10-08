@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { Prisma, type Coche } from "@prisma/client";
 import { baseDatos } from "@/db";
+import { obtenerSesionGoogle } from "@/auth/google";
 import type { EntradaHistorial, PerfilLocal } from "@/storage/tiposModoGratis";
 
 // Sube el perfil (User + Coches) y los viajes pendientes del historial.
@@ -12,12 +13,16 @@ export const dynamic = "force-dynamic";
 interface CuerpoSincronizar {
   perfil?: PerfilLocal;
   historial?: EntradaHistorial[];
-  hashContrasena?: string | null;
 }
 
 export async function POST(peticion: NextRequest) {
   if (process.env.SERVER_ON !== "true") {
     return NextResponse.json({ ok: false, error: "Modo online desactivado." }, { status: 503 });
+  }
+
+  const identidad = await obtenerSesionGoogle(peticion);
+  if (!identidad) {
+    return NextResponse.json({ ok: false, error: "Inicia sesión con Google para sincronizar." }, { status: 401 });
   }
 
   let cuerpo: CuerpoSincronizar;
@@ -28,6 +33,9 @@ export async function POST(peticion: NextRequest) {
   }
   if (!cuerpo.perfil?.correo || !cuerpo.perfil?.nombre) {
     return NextResponse.json({ ok: false, error: "Falta el perfil." }, { status: 400 });
+  }
+  if (cuerpo.perfil.correo.trim().toLowerCase() !== identidad.correo) {
+    return NextResponse.json({ ok: false, error: "La cuenta de Google no coincide con este perfil." }, { status: 403 });
   }
   // Const local para que el narrowing sobreviva dentro de la transacción.
   const perfil = cuerpo.perfil;
@@ -40,13 +48,11 @@ export async function POST(peticion: NextRequest) {
         update: {
           name: perfil.nombre,
           image: perfil.foto ?? null,
-          ...(cuerpo.hashContrasena ? { password: cuerpo.hashContrasena } : {}),
         },
         create: {
           email: perfil.correo,
           name: perfil.nombre,
           image: perfil.foto ?? null,
-          password: cuerpo.hashContrasena ?? null,
         },
       });
 

@@ -11,6 +11,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { adaptadorAlmacenamientoLocal } from "@/storage/almacenamiento";
 import {
+  eliminarHashContrasena,
   eliminarPerfil,
   guardarHistorialActivo,
   guardarPerfil,
@@ -23,6 +24,7 @@ import {
   obtenerPerfil,
   obtenerUltimoCorreo,
   obtenerVersionPerfil,
+  olvidarViajesCreados,
   VERSION_PERFIL,
 } from "@/storage/datosLocales";
 import type { CocheLocal, EntradaHistorial, PerfilLocal } from "@/storage/tiposModoGratis";
@@ -38,6 +40,7 @@ import { HistorialPerfil } from "@/components/perfil/historialPerfil";
 import { CuentaPerfil } from "@/components/perfil/cuentaPerfil";
 import { SincronizacionPerfil } from "@/components/perfil/sincronizacionPerfil";
 import { LibreriasPerfil } from "@/components/perfil/libreriasPerfil";
+import { avisarDatosCambiados } from "@/estadoSincronizacion";
 
 type ApartadoPerfil = "coches" | "historial" | "cuenta";
 
@@ -87,9 +90,16 @@ export default function PaginaPerfil() {
     })();
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.location.hash === "#cuenta") {
+      setApartado("cuenta");
+    }
+  }, []);
+
   const persistir = useCallback(async (actualizado: PerfilLocal) => {
     await guardarPerfil(adaptadorAlmacenamientoLocal, actualizado);
     setPerfil(actualizado);
+    avisarDatosCambiados();
   }, []);
 
   const alCrearPerfil = useCallback(
@@ -154,18 +164,30 @@ export default function PaginaPerfil() {
   );
 
   const alOlvidarDispositivo = useCallback(async () => {
-    await eliminarPerfil(adaptadorAlmacenamientoLocal);
+    try {
+      await fetch("/api/auth/google", { method: "DELETE" });
+    } catch {
+      // El borrado local debe completarse aunque el servidor no responda.
+    }
+    await Promise.allSettled([
+      eliminarPerfil(adaptadorAlmacenamientoLocal),
+      eliminarHashContrasena(adaptadorAlmacenamientoLocal),
+      olvidarViajesCreados(adaptadorAlmacenamientoLocal),
+    ]);
     setPerfil(null);
+    avisarDatosCambiados();
   }, []);
 
   const alCambiarHistorialActivo = useCallback(async (valor: boolean) => {
     await guardarHistorialActivo(adaptadorAlmacenamientoLocal, valor);
     setHistorialActivo(valor);
+    avisarDatosCambiados();
   }, []);
 
   const alVaciarHistorial = useCallback(async () => {
     await limpiarHistorial(adaptadorAlmacenamientoLocal);
     setHistorial([]);
+    avisarDatosCambiados();
   }, []);
 
   const [confirmacion, setConfirmacion] = useState<{
@@ -275,7 +297,7 @@ export default function PaginaPerfil() {
             alOlvidar={() =>
               pedirConfirmacion(
                 "Olvidar dispositivo",
-                "¿Olvidar este dispositivo? Se borrará tu perfil, pero no el historial.",
+                "Se borrarán el perfil y los permisos de organizador de este dispositivo. El historial se conservará.",
                 "Olvidar",
                 () => alOlvidarDispositivo(),
               )

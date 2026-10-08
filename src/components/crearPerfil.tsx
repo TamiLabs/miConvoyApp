@@ -16,15 +16,6 @@ interface PropiedadesCrearPerfil {
   correoInicial?: string;
 }
 
-function decodificarJwt(credencial: string): { email?: string; name?: string; picture?: string } {
-  const parte = credencial.split(".")[1] ?? "";
-  let base64 = parte.replace(/-/g, "+").replace(/_/g, "/");
-  while (base64.length % 4) base64 += "=";
-  const binario = atob(base64);
-  const bytes = Uint8Array.from(binario, (caracter) => caracter.charCodeAt(0));
-  return JSON.parse(new TextDecoder("utf-8").decode(bytes));
-}
-
 function BotonesGoogle({
   alCrear,
   alFallar,
@@ -36,15 +27,22 @@ function BotonesGoogle({
     <div className="paginaPerfil__google">
       <GoogleLogin
         text="signin_with"
-        onSuccess={(respuesta) => {
+        onSuccess={async (respuesta) => {
           try {
             if (!respuesta.credential) throw new Error("sin credencial");
-            const datos = decodificarJwt(respuesta.credential);
-            if (!datos.email) throw new Error("sin correo");
+            const autenticacion = await fetch("/api/auth/google", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ credential: respuesta.credential }),
+            });
+            const datosAutenticacion = await autenticacion.json();
+            if (!autenticacion.ok || !datosAutenticacion.ok || !datosAutenticacion.identidad?.correo) {
+              throw new Error("no se pudo verificar");
+            }
             alCrear({
-              correo: datos.email,
-              nombre: datos.name ?? datos.email,
-              foto: datos.picture,
+              correo: datosAutenticacion.identidad.correo,
+              nombre: datosAutenticacion.identidad.nombre ?? datosAutenticacion.identidad.correo,
+              foto: datosAutenticacion.identidad.foto ?? undefined,
             });
           } catch {
             alFallar("No se pudo leer la cuenta de Google. Usa el formulario manual.");

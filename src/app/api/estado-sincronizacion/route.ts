@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { baseDatos } from "@/db";
+import { obtenerSesionGoogle } from "@/auth/google";
 
 // Compara la foto local con la del servidor SIN devolver hashes al cliente.
 // Responde qué apartados difieren para activar o no el botón de sincronizar.
@@ -20,7 +21,6 @@ interface CuerpoEstado {
     correo?: string;
     nombre?: string;
     foto?: string | null;
-    hashContrasena?: string | null;
     coches?: CocheFoto[];
   };
   historialIds?: string[];
@@ -43,6 +43,11 @@ export async function POST(peticion: NextRequest) {
     return NextResponse.json({ ok: false, error: "Modo online desactivado." }, { status: 503 });
   }
 
+  const identidad = await obtenerSesionGoogle(peticion);
+  if (!identidad) {
+    return NextResponse.json({ ok: false, error: "Inicia sesión con Google para sincronizar." }, { status: 401 });
+  }
+
   let cuerpo: CuerpoEstado;
   try {
     cuerpo = (await peticion.json()) as CuerpoEstado;
@@ -51,6 +56,9 @@ export async function POST(peticion: NextRequest) {
   }
   if (!cuerpo.perfil?.correo) {
     return NextResponse.json({ ok: false, error: "Falta el correo." }, { status: 400 });
+  }
+  if (cuerpo.perfil.correo.trim().toLowerCase() !== identidad.correo) {
+    return NextResponse.json({ ok: false, error: "La cuenta de Google no coincide con este perfil." }, { status: 403 });
   }
 
   try {
@@ -77,8 +85,7 @@ export async function POST(peticion: NextRequest) {
 
     const usuarioDifiere =
       (usuario.name ?? "") !== (cuerpo.perfil.nombre ?? "") ||
-      (usuario.image ?? null) !== (cuerpo.perfil.foto ?? null) ||
-      (usuario.password ?? null) !== (cuerpo.perfil.hashContrasena ?? null);
+      (usuario.image ?? null) !== (cuerpo.perfil.foto ?? null);
 
     const locales = [...cochesLocales.map(normalizarCoche)].sort();
     const remotos = [

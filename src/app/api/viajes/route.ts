@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { baseDatos } from "@/db";
 import { publicarPlazas } from "@/tiempoReal";
+import { obtenerSesionGoogle } from "@/auth/google";
 
 // Crea un viaje online: coches con conductor (plaza 1 ocupada), gastos y
 // ajustes. Devuelve el id y el token de edición (solo organizador).
@@ -49,6 +50,10 @@ export async function POST(peticion: NextRequest) {
   if (process.env.SERVER_ON !== "true") {
     return NextResponse.json({ ok: false, error: "Modo online desactivado." }, { status: 503 });
   }
+  const identidad = await obtenerSesionGoogle(peticion);
+  if (!identidad) {
+    return NextResponse.json({ ok: false, error: "Inicia sesión con Google para publicar un viaje." }, { status: 401 });
+  }
   let cuerpo: CuerpoCrearViaje;
   try {
     cuerpo = (await peticion.json()) as CuerpoCrearViaje;
@@ -57,6 +62,10 @@ export async function POST(peticion: NextRequest) {
   }
   const fallo = esValido(cuerpo);
   if (fallo) return NextResponse.json({ ok: false, error: fallo }, { status: 400 });
+  if (cuerpo.email?.trim().toLowerCase() !== identidad.correo) {
+    return NextResponse.json({ ok: false, error: "La cuenta de Google no coincide con este perfil." }, { status: 403 });
+  }
+  cuerpo.email = identidad.correo;
   const distanciaKm = cuerpo.distanciaKm as number;
 
   try {

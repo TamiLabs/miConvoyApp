@@ -4,10 +4,7 @@ import { useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCheck,
-  faCircle,
   faCircleDot,
-  faLifeRing,
-  faUserMinus,
   faXmark,
 } from "@fortawesome/free-solid-svg-icons";
 import { formatearEuros } from "@/formato";
@@ -77,11 +74,8 @@ export function TarjetaCocheOnline({
     });
 
   const alLiberar = (ocupanteId: string) =>
-    nombre.trim() &&
-    llamar(`/api/viajes/${viajeId}/liberar`, { ocupanteId, nombre: nombre.trim() });
-
-  const alExpulsar = (ocupanteId: string) =>
-    tokenEdicion && llamar(`/api/viajes/${viajeId}/expulsar`, { ocupanteId, tokenEdicion });
+    tokenEdicion &&
+    llamar(`/api/viajes/${viajeId}/liberar`, { ocupanteId, tokenEdicion });
 
   return (
     <article className="tarjeta">
@@ -106,23 +100,29 @@ export function TarjetaCocheOnline({
             {fila.map((plaza) => {
               const ocupante = ocupanteDe(plaza);
               const esConductor = plaza === 1;
+              const puedeGestionar = organizador && !!ocupante && !esConductor;
               return (
                 <button
                   key={plaza}
                   type="button"
-                  disabled={!!ocupante || ocupado}
+                  disabled={ocupado || (!!ocupante && !puedeGestionar)}
                   onClick={() => setPlazaElegida(plazaElegida === plaza ? null : plaza)}
+                  aria-pressed={plazaElegida === plaza}
                   className={
                     ocupante
                       ? esConductor
                         ? "plaza plaza--conductor"
-                        : "plaza plaza--ocupada"
+                        : plazaElegida === plaza && puedeGestionar
+                          ? "plaza plaza--elegida"
+                          : "plaza plaza--ocupada"
                       : plazaElegida === plaza
                         ? "plaza plaza--elegida"
                         : "plaza plaza--libre"
                   }
                   aria-label={
-                    ocupante ? `Plaza ${plaza}: ${ocupante.nombre}` : `Plaza ${plaza} libre, elegir`
+                    ocupante
+                      ? `Plaza ${plaza}: ${ocupante.nombre}${puedeGestionar ? ", gestionar plaza" : ""}`
+                      : `Plaza ${plaza} libre, elegir`
                   }
                 >
                   <span className="plaza__numero">
@@ -165,19 +165,10 @@ export function TarjetaCocheOnline({
         ocupanteDe(plazaElegida)?.plaza !== 1 && (
           <div className="formulario">
             <p className="textoSuave">
-              Plaza de {ocupanteDe(plazaElegida)?.nombre}. Escribe su nombre para liberarla
-              {organizador ? " (o expúlsala como organizador)" : ""}.
+              Plaza de {ocupanteDe(plazaElegida)?.nombre}. Solo el organizador puede liberar esta
+              plaza.
             </p>
-            <label className="formulario__campo">
-              <span className="formulario__etiqueta">Nombre</span>
-              <input
-                className="formulario__entrada"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                placeholder="El nombre de la plaza"
-              />
-            </label>
-            <div className="formulario__acciones">
+            {organizador && tokenEdicion && (
               <button
                 type="button"
                 className="botonSecundario"
@@ -185,24 +176,11 @@ export function TarjetaCocheOnline({
                   const ocupante = ocupanteDe(plazaElegida);
                   if (ocupante) void alLiberar(ocupante.id);
                 }}
-                disabled={ocupado || !nombre.trim()}
+                disabled={ocupado}
               >
-                <FontAwesomeIcon icon={faXmark} /> Liberar
+                <FontAwesomeIcon icon={faXmark} /> Liberar plaza
               </button>
-              {organizador && (
-                <button
-                  type="button"
-                  className="botonSutil"
-                  onClick={() => {
-                    const ocupante = ocupanteDe(plazaElegida);
-                    if (ocupante) void alExpulsar(ocupante.id);
-                  }}
-                  disabled={ocupado}
-                >
-                  <FontAwesomeIcon icon={faUserMinus} /> Expulsar
-                </button>
-              )}
-            </div>
+            )}
           </div>
         )}
       {mensaje ? <p className="formulario__error">{mensaje}</p> : null}

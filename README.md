@@ -135,9 +135,10 @@ precioFinal = Math.ceil(costePorPersona / 0.5) * 0.5
 ## 7. Autenticación y cuentas
 
 - **Identificador único**: el correo (Gmail) se usa como clave primaria tanto en local como en servidor (`upsert` por email), para poder enlazar el perfil local con la cuenta del servidor sin conflictos.
-- **Login**: Google Identity Services real desde el Modo Free (resuelto en cliente, sin servidor) + formulario local de gmail + nombre como alternativa. La decisión de usar Google real quedó confirmada.
-- **Contraseña provisional**: se puede crear en el perfil (mínimo 8, con medidor de fuerza); se guarda en hash SHA-256 solo en el dispositivo y se sube al campo `password` al sincronizar. El registro real con servidor queda para NextAuth.
-- **Sincronización**: el apartado Sincronización compara contra el servidor (usuario, coches por matrícula, viajes por id de cliente) y el botón se activa solo si hay diferencias; si no, queda desactivado. Sube perfil + viajes pendientes sin duplicar; los coches borrados en local se borran en servidor (los viajes, nunca).
+- **Perfil local**: puede crearse con Google Identity Services o con correo y nombre; el formulario manual solo crea una identidad local y no demuestra control de esa cuenta.
+- **Autenticación del servidor**: las operaciones de sincronización y publicación online requieren una cuenta de Google verificada por el servidor. El servidor valida el ID token con `google-auth-library` y mantiene una cookie `HttpOnly`, `SameSite=Strict` de una hora. El correo verificado debe coincidir con el perfil local. `NEXT_PUBLIC_GOOGLE_CLIENT_ID` es necesario para esas funciones.
+- **Contraseña provisional**: se puede crear en el perfil (mínimo 8, con medidor de fuerza); se guarda en hash SHA-256 solo en el dispositivo y no se envía al servidor. No sirve para iniciar sesión online; el registro real con servidor queda para NextAuth.
+- **Sincronización**: el apartado Sincronización compara contra el servidor (usuario, coches por matrícula, viajes por id de cliente) y el botón se activa solo si hay diferencias; si no, queda desactivado. Sube perfil + viajes pendientes sin duplicar; los coches borrados en local se borran en servidor (los viajes, nunca). Requiere una sesión de Google vigente con el mismo correo.
 - **Crear un viaje** en Modo Free no requiere cuenta. En Modo Online, sí hará falta cuenta para crear un convoy con enlace de invitación (para poder identificar quién es quién).
 
 ## 8. Modo Online (futuro, al activar el servidor)
@@ -145,7 +146,8 @@ precioFinal = Math.ceil(costePorPersona / 0.5) * 0.5
 ### Funcionalidades
 
 - El organizador de un viaje crea el viaje y comparte un **enlace** con los pasajeros.
-- Al entrar al enlace, cada persona se identifica: elige su nombre entre los pasajeros ya creados por el conductor, o crea uno nuevo (**límite de 5 pasajeros por coche**).
+- Al entrar al enlace, cada pasajero elige una plaza libre e introduce su nombre. El nombre identifica visualmente la reserva; no es una prueba de identidad.
+- El conductor ocupa la plaza 1 al crear el viaje. Solo el organizador puede liberar o expulsar pasajeros de las demás plazas mediante su permiso de edición.
 - Se pueden añadir **varios coches a un mismo viaje** (convoy), y cada coche puede a su vez invitar a más gente.
 - Con el servidor activo, un pasajero (identificado por su gmail) solo puede estar en **un coche a la vez** dentro de un viaje/convoy.
 - **Mapa en tiempo real**: se puede ver en un mapa la posición de cada coche del convoy, mediante la geolocalización del conductor o, en su defecto, de algún pasajero que la tenga activada. Si nadie la tiene activada, ese coche se muestra sin conexión.
@@ -182,7 +184,7 @@ precioFinal = Math.ceil(costePorPersona / 0.5) * 0.5
 | Mapa del convoy                       | Leaflet + OpenStreetMap, o MapLibre GL JS                      | Gratuitos, sin cuota de facturación, funcionan igual en WebView de Capacitor        |
 | Cálculo de distancia/ruta (Modo Free) | OpenRouteService                                               | API key gratuita, cuota diaria generosa; evita los costes de Google Distance Matrix |
 
-Las llamadas a ORS van por proxy propio (`/api/geocode`, `/api/ruta`) para evitar el CORS y no exponer la key. El plan gratuito tiene cuota: ante un fallo, la app avisa una vez y sigue en manual.
+Las llamadas a ORS van por proxy propio (`/api/geocode`, `/api/ruta`) para evitar el CORS y no exponer la key. El proxy limita las búsquedas no cacheadas por IP, valida las entradas, usa timeout y caché local por instancia, y deduplica llamadas simultáneas. Los valores por defecto son 30 por minuto y 250 por día (`ORS_MAX_REQUESTS_PER_MINUTE`, `ORS_MAX_REQUESTS_PER_DAY`). En un despliegue serverless estos límites y la caché son por instancia activa; para un tope global compartido hace falta un almacén distribuido. Si ORS falla o se alcanza el límite, la app permite seguir con distancia manual.
 
 ## 10. Disponibilidad del servidor (on/off)
 
@@ -206,15 +208,22 @@ La app funciona igual de bien tanto si el servidor está desplegado como si no:
 - Actualizaciones: idealmente automáticas y transparentes para el usuario; si no es posible, avisar al entrar de que hay una actualización disponible, con un botón para descargarla.
 - Publicación en App Store / Google Play: no es una decisión necesaria por ahora. Capacitor permite compilar para ambas plataformas sin tener que decidir de antemano. Único punto a tener en cuenta más adelante: Apple revisa con más rigor el uso de geolocalización en segundo plano, así que conviene justificarlo bien en el formulario de publicación cuando llegue el momento.
 
+## SEO y páginas de error
+
+- Configura `NEXT_PUBLIC_SITE_URL` con el origen público completo del despliegue y sin barra final (por ejemplo, `https://mi-dominio.es`). Se usa como URL base de metadatos, canonical y sitemap.
+- La calculadora es indexable. El perfil y los viajes online se excluyen de resultados porque pueden mostrar datos personales o de acceso compartido.
+- `robots.txt` excluye las API y anuncia el sitemap cuando se ha configurado el dominio. El sitemap solo incluye la calculadora; las páginas de perfil y viaje no son contenido público de búsqueda.
+- Las rutas inexistentes muestran una página 404 animada y adaptable, que respeta la preferencia del sistema por reducir movimiento.
+
 ## 13. Modelo de datos (esquema)
 
 - **`src/calculadora.ts`**: función pura `calcularCoche` con la fórmula de la sección 5, sin dependencias de Next.js, Prisma ni `localStorage`. Se importa desde el cliente (Modo Free) y se reutilizará desde el servidor (Modo Online). Un convoy es `calcularConvoy`, que llama a `calcularCoche` una vez por cada coche.
 
 - **Autenticación**: Google Identity Services (login real de Google) desde el principio en Modo Free; NextAuth + proveedor Google pendiente para el Modo Online. El correo es el identificador natural que enlaza el perfil local con la cuenta del servidor.
 - **Modo Free** (sin base de datos, todo en `localStorage`): tipos en `src/storage/tiposModoGratis.ts` — `PerfilLocal` (con `tieneCoche`), `CocheLocal` (consumo, precio, tipo, plazas), `EntradaHistorial` (con resultado + `detallePorCoche` como snapshot inmutable, más `origen`/`destino`).
-- **Modo Online** (con base de datos): esquema en `schema.prisma` — `User`/`Account`/`Session` (+ `password` provisional), `Coche` (con precio, tipo, plazas), `Viaje` (con `modoOrigen`, `origenClienteId` único), `CocheDelViaje`, `Pasajero`, `GastoAdicional`.
+- **Modo Online** (con base de datos): esquema en `prisma/schema.prisma` — `User`/`Account`/`Session` (+ campo `password`, todavía sin autenticación por contraseña), `Coche` (con precio, tipo, plazas), `Viaje` (con `modoOrigen`, `origenClienteId` único), `CocheDelViaje`, `Ocupante`, `Pasajero`, `GastoAdicional`.
 - La sincronización (`POST /api/sincronizar`, con comparación previa en `POST /api/estado-sincronizacion`) mapea:
-  - `PerfilLocal` → `User` (upsert por email, con hash a `password`)
+  - `PerfilLocal` → `User` (upsert por email verificado con Google; el hash de contraseña local no se sincroniza)
   - `CocheLocal` → `Coche` (emparejado por matrícula; borra los eliminados en local)
   - `EntradaHistorial` → `Viaje` (con `modoOrigen: "gratis"` y `origenClienteId` para no duplicar)
 - El campo `resultado` de `Viaje` (tipo `Json`) guarda el cálculo ya hecho: si la fórmula cambia en el futuro, estos registros no se recalculan.

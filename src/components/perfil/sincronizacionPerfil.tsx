@@ -3,26 +3,26 @@
 import { useCallback, useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faCircleNotch, faCloudArrowUp, faXmark } from "@fortawesome/free-solid-svg-icons";
+import { GoogleLogin, GoogleOAuthProvider } from "@react-oauth/google";
 import { adaptadorAlmacenamientoLocal } from "@/storage/almacenamiento";
 import {
   guardarIdsHistorialSubidos,
-  obtenerHashContrasena,
   obtenerIdsHistorialSubidos,
 } from "@/storage/datosLocales";
 import type { EntradaHistorial, PerfilLocal } from "@/storage/tiposModoGratis";
 import { useEstadoServidor } from "@/hooks/useEstadoServidor";
 import { VentanaEmergente } from "@/components/ventanaEmergente";
+import {
+  comprobarDiferencias,
+  hayCambiosSync,
+  avisarDatosCambiados,
+  type DiferenciasSync,
+} from "@/estadoSincronizacion";
 
 interface PropiedadesSincronizacion {
   perfil: PerfilLocal;
   historial: EntradaHistorial[];
   historialActivo: boolean;
-}
-
-interface EstadoDiferencias {
-  usuarioDifiere: boolean;
-  cochesDifieren: boolean;
-  viajesPendientes: number;
 }
 
 type VistaSubida =
@@ -37,41 +37,15 @@ export function SincronizacionPerfil({
 }: PropiedadesSincronizacion) {
   const { cargando, disponible, motivo, servidorOn, recomprobar } = useEstadoServidor();
   const [comprobando, setComprobando] = useState(false);
-  const [diferencias, setDiferencias] = useState<EstadoDiferencias | null>(null);
+  const [diferencias, setDiferencias] = useState<DiferenciasSync | null>(null);
   const [vistaSubida, setVistaSubida] = useState<VistaSubida | null>(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [errorGoogle, setErrorGoogle] = useState<string | null>(null);
+  const idClienteGoogle = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "";
 
   const comprobar = useCallback(async () => {
     setComprobando(true);
-    try {
-      const hash = await obtenerHashContrasena(adaptadorAlmacenamientoLocal);
-      const subidos = await obtenerIdsHistorialSubidos(adaptadorAlmacenamientoLocal);
-      const respuesta = await fetch("/api/estado-sincronizacion", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          perfil: {
-            correo: perfil.correo,
-            nombre: perfil.nombre,
-            foto: perfil.foto ?? null,
-            hashContrasena: hash,
-            coches: perfil.coches,
-          },
-          historialIds: historialActivo
-            ? historial.map((e) => e.id).filter((id) => !subidos.includes(id))
-            : [],
-        }),
-      });
-      const datos = await respuesta.json();
-      if (!respuesta.ok || !datos.ok) throw new Error(datos.error ?? "Error al comparar.");
-      setDiferencias({
-        usuarioDifiere: !!datos.usuarioDifiere,
-        cochesDifieren: !!datos.cochesDifieren,
-        viajesPendientes: datos.viajesPendientes ?? 0,
-      });
-    } catch {
-      setDiferencias(null);
-    }
+    setDiferencias(await comprobarDiferencias(perfil, historial, historialActivo));
     setComprobando(false);
   }, [perfil, historial, historialActivo]);
 
@@ -80,9 +54,30 @@ export function SincronizacionPerfil({
     else setDiferencias(null);
   }, [disponible, comprobar]);
 
-  const hayCambios =
-    !!diferencias &&
-    (diferencias.usuarioDifiere || diferencias.cochesDifieren || diferencias.viajesPendientes > 0);
+  const hayCambios = hayCambiosSync(diferencias);
+
+  const autenticarGoogle = async (credencial: string) => {
+    setErrorGoogle(null);
+    try {
+      const respuesta = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential: credencial }),
+      });
+      const datos = await respuesta.json();
+      const correo = datos.identidad?.correo as string | undefined;
+      if (!respuesta.ok || !datos.ok || !correo) {
+        throw new Error(datos.error ?? "No se pudo verificar la cuenta de Google.");
+      }
+      if (correo.toLowerCase() !== perfil.correo.trim().toLowerCase()) {
+        await fetch("/api/auth/google", { method: "DELETE" });
+        throw new Error("Elige la misma cuenta de Google que usas en este perfil.");
+      }
+      await comprobar();
+    } catch (e) {
+      setErrorGoogle(e instanceof Error ? e.message : "No se pudo iniciar sesión con Google.");
+    }
+  };
 
   const subir = async (entradas: EntradaHistorial[], soloPerfil: boolean) => {
     setSubiendo(true);
@@ -98,14 +93,16 @@ export function SincronizacionPerfil({
         setSubiendo(false);
         return;
       }
-      const hash = await obtenerHashContrasena(adaptadorAlmacenamientoLocal);
       const respuesta = await fetch("/api/sincronizar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ perfil, historial: entradas, hashContrasena: hash }),
+        body: JSON.stringify({ perfil, historial: entradas }),
       });
       const datos = await respuesta.json();
-      if (!respuesta.ok || !datos.ok) throw new Error(datos.error ?? "Error al subir.");
+      if (!respuesta.ok || !datos.ok) {
+        if (respuesta.status === 401) setDiferencias(null);
+        throw new Error(datos.error ?? "Error al subir.");
+      }
       const subidos = await obtenerIdsHistorialSubidos(adaptadorAlmacenamientoLocal);
       await guardarIdsHistorialSubidos(adaptadorAlmacenamientoLocal, [
         ...subidos,
@@ -127,6 +124,8 @@ export function SincronizacionPerfil({
       }
       setVistaSubida({ tipo: "resultado", ok: true, mensaje: `${partes.join(". ")}.` });
       await comprobar();
+      // Que los avisos globales relean: si no, la notificación se queda puesta.
+      avisarDatosCambiados();
     } catch (e) {
       setVistaSubida({
         tipo: "resultado",
@@ -189,9 +188,28 @@ export function SincronizacionPerfil({
           )}
         </>
       ) : !diferencias ? (
-        <p className="formulario__error">
-          No se pudo comparar con el servidor. Inténtalo de nuevo.
-        </p>
+        <>
+          <p className="textoSuave">
+            Confirma tu cuenta de Google para comparar y sincronizar los datos de este perfil.
+          </p>
+          {errorGoogle && <p className="formulario__error">{errorGoogle}</p>}
+          {idClienteGoogle ? (
+            <GoogleOAuthProvider clientId={idClienteGoogle}>
+              <GoogleLogin
+                text="signin_with"
+                onSuccess={(respuesta) => {
+                  if (respuesta.credential) void autenticarGoogle(respuesta.credential);
+                  else setErrorGoogle("Google no devolvió una credencial válida.");
+                }}
+                onError={() => setErrorGoogle("No se pudo iniciar sesión con Google.")}
+              />
+            </GoogleOAuthProvider>
+          ) : (
+            <p className="formulario__error">
+              Falta configurar NEXT_PUBLIC_GOOGLE_CLIENT_ID para habilitar la sincronización.
+            </p>
+          )}
+        </>
       ) : (
         <>
           <div className="grupoAcciones">

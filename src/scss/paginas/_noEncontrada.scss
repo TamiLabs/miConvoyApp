@@ -1,0 +1,159 @@
+@use "../constantes" as *;
+
+.paginaNoEncontrada {
+  --color-carretera: #202a39;
+  display: flex;
+  min-height: min(76vh, 48rem);
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid $colorBorde;
+  border-radius: 1.5rem;
+  background: radial-gradient(ellipse at 50% 0%, #fff 0%, #f7f9fa 65%, #edf1f3 100%);
+  padding: clamp(1.25rem, 5vw, 3.5rem);
+  text-align: center;
+
+  &__escena {
+    position: relative;
+    width: min(100%, 42rem);
+    height: clamp(13rem, 34vw, 19rem);
+    margin: 0 auto 1.5rem;
+  }
+
+  &__cielo {
+    position: absolute;
+    inset: 0 0 28%;
+    overflow: hidden;
+  }
+
+  &__sol {
+    position: absolute;
+    top: 8%;
+    right: 15%;
+    width: clamp(2.5rem, 9vw, 4.5rem);
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background: #ffd27d;
+    box-shadow: 0 0 0 0.75rem rgba(255, 210, 125, 0.18), 0 0 3rem rgba(255, 210, 125, 0.55);
+    animation: solRespira 4s ease-in-out infinite;
+  }
+
+  &__nube {
+    position: absolute;
+    top: 28%;
+    left: -20%;
+    width: 5.5rem;
+    height: 1.5rem;
+    border-radius: 999px;
+    background: #dce5e9;
+    animation: nubeViaja 20s linear infinite;
+
+    &::before,
+    &::after {
+      position: absolute;
+      bottom: 0;
+      border-radius: 50%;
+      background: inherit;
+      content: "";
+    }
+
+    &::before { left: 1rem; width: 2rem; height: 2rem; }
+    &::after { right: 0.75rem; width: 1.5rem; height: 1.5rem; }
+
+    &--dos { top: 52%; animation-delay: -11s; animation-duration: 27s; transform: scale(.7); }
+  }
+
+  &__numero {
+    position: absolute;
+    inset: 1% 0 18%;
+    display: grid;
+    place-items: center;
+    color: rgba(255, 107, 74, 0.13);
+    font-family: "Space Grotesk", sans-serif;
+    font-size: clamp(7rem, 27vw, 15rem);
+    font-weight: 700;
+    letter-spacing: -0.1em;
+    line-height: 1;
+    user-select: none;
+  }
+
+  &__carretera {
+    position: absolute;
+    right: -8%;
+    bottom: 5%;
+    left: -8%;
+    height: 38%;
+    overflow: hidden;
+    border-top: .45rem solid #d7dfe3;
+    border-radius: 50% 50% 0 0 / 32% 32% 0 0;
+    background: var(--color-carretera);
+    box-shadow: 0 -0.4rem 0 #fff;
+  }
+
+  &__linea {
+    position: absolute;
+    top: 54%;
+    left: 0;
+    width: 200%;
+    border-top: .2rem dashed #fff;
+    opacity: .8;
+    animation: carreteraCorre 1.1s linear infinite;
+  }
+
+  &__coche {
+    position: absolute;
+    z-index: 1;
+    top: 7%;
+    left: 50%;
+    width: 5.8rem;
+    height: 2.4rem;
+    border: 2px solid #fff;
+    border-radius: 1.4rem .9rem .65rem .65rem;
+    background: $colorPrimario;
+    box-shadow: 0 .4rem 0 rgba(0, 0, 0, .16);
+    animation: cocheSalta 1.15s ease-in-out infinite;
+  }
+
+  &__cocheTecho {
+    position: absolute;
+    top: -1rem;
+    left: 1.25rem;
+    width: 2.8rem;
+    height: 1.3rem;
+    border: 2px solid #fff;
+    border-bottom: 0;
+    border-radius: 1.2rem .8rem 0 0;
+    background: #ffb39f;
+  }
+
+  &__rueda {
+    position: absolute;
+    bottom: -.45rem;
+    width: .85rem;
+    aspect-ratio: 1;
+    border: .2rem solid #fff;
+    border-radius: 50%;
+    background: var(--color-carretera);
+    &--una { left: .7rem; }
+    &--dos { right: .7rem; }
+  }
+
+  &__contenido { max-width: 34rem; margin: 0 auto; }
+  &__etiqueta { margin-bottom: .45rem; color: #c94d32; font-size: .85rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  &__contenido h1 { font-size: clamp(1.65rem, 5vw, 2.5rem); }
+  &__descripcion { max-width: 30rem; margin: 0 auto; color: $colorTextoSuave; }
+  &__acciones { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: .8rem 1.25rem; margin-top: 1.5rem; }
+  &__enlace { min-height: 2.75rem; display: inline-flex; align-items: center; color: #374151; font-weight: 600; text-underline-offset: .2em; }
+}
+
+@keyframes nubeViaja { to { left: 115%; } }
+@keyframes carreteraCorre { to { transform: translateX(-50%); } }
+@keyframes cocheSalta { 0%, 100% { transform: translate(-50%, 0) rotate(0); } 50% { transform: translate(-50%, -.22rem) rotate(-1deg); } }
+@keyframes solRespira { 50% { transform: scale(1.06); } }
+
+@media (max-width: 480px) {
+  .paginaNoEncontrada { min-height: 70vh; padding: 1rem; border-radius: 1rem; }
+  .paginaNoEncontrada__escena { margin-bottom: 1rem; }
+  .paginaNoEncontrada__acciones { flex-direction: column; }
+  .paginaNoEncontrada__acciones > * { width: 100%; }
+}

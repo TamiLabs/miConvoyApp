@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLink } from "@fortawesome/free-solid-svg-icons";
+import { faArrowLeft, faLink } from "@fortawesome/free-solid-svg-icons";
 import { adaptadorAlmacenamientoLocal } from "@/storage/almacenamiento";
 import { obtenerViajesCreados } from "@/storage/datosLocales";
 import { formatearEuros } from "@/formato";
@@ -10,6 +11,7 @@ import { useViaje } from "@/hooks/useViaje";
 import { TarjetaCocheOnline } from "@/components/online/tarjetaCocheOnline";
 
 export default function PaginaVerViaje({ params }: { params: { id: string } }) {
+  const router = useRouter();
   const { viaje, cargando, error, recargar } = useViaje(params.id);
   const [copiado, setCopiado] = useState(false);
   const [tokenEdicion, setTokenEdicion] = useState<string | null>(null);
@@ -48,6 +50,11 @@ export default function PaginaVerViaje({ params }: { params: { id: string } }) {
 
   return (
     <section className="paginaEnLinea">
+      {organizador && (
+        <button type="button" className="botonSecundario" onClick={() => router.back()}>
+          <FontAwesomeIcon icon={faArrowLeft} /> Atrás
+        </button>
+      )}
       <h2 className="tituloSeccion">
         {viaje.origen} → {viaje.destino}
       </h2>

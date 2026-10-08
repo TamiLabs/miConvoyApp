@@ -9,6 +9,7 @@ import {
 } from "@/mapas/openRouteService";
 
 interface PropiedadesCampoDireccion {
+  id: string;
   etiqueta: string;
   valor: string;
   placeholder?: string;
@@ -19,6 +20,7 @@ interface PropiedadesCampoDireccion {
 }
 
 export function CampoDireccion({
+  id,
   etiqueta,
   valor,
   placeholder,
@@ -30,25 +32,31 @@ export function CampoDireccion({
   const [sugerencias, setSugerencias] = useState<SugerenciaDireccion[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [abierta, setAbierta] = useState(false);
+  const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null);
   const ultimoElegido = useRef("");
 
   useEffect(() => {
-    if (estanCaidosLosMapas() || !valor.trim() || valor === ultimoElegido.current) {
+    if (estanCaidosLosMapas() || valor.trim().length < 3 || valor === ultimoElegido.current) {
       setSugerencias([]);
       return;
     }
     const controlador = new AbortController();
     const temporizador = setTimeout(async () => {
       setBuscando(true);
+      setErrorBusqueda(null);
       try {
         const encontradas = await buscarDirecciones(valor.trim(), controlador.signal);
         setSugerencias(encontradas);
         setAbierta(true);
-      } catch {
-        // Abortado o sin conexión: el campo manual sigue valiendo.
+      } catch (error) {
         setSugerencias([]);
+        if (!controlador.signal.aborted) {
+          setErrorBusqueda(
+            error instanceof Error ? error.message : "No se pudieron buscar sugerencias.",
+          );
+        }
       }
-      setBuscando(false);
+      if (!controlador.signal.aborted) setBuscando(false);
     }, 450);
     return () => {
       controlador.abort();
@@ -61,6 +69,7 @@ export function CampoDireccion({
     ultimoElegido.current = sugerencia.etiqueta;
     setSugerencias([]);
     setAbierta(false);
+    setErrorBusqueda(null);
     alElegir({
       latitud: sugerencia.latitud,
       longitud: sugerencia.longitud,
@@ -70,9 +79,12 @@ export function CampoDireccion({
 
   return (
     <div className="campoDireccion">
-      <span className="formulario__etiqueta">{etiqueta}</span>
+      <label className="formulario__etiqueta" htmlFor={id}>
+        {etiqueta}
+      </label>
       <div className="calculadora__conBoton">
         <input
+          id={id}
           className={`formulario__entrada${resaltar ? " formulario__entrada--parpadeo" : ""}`}
           value={valor}
           onChange={(e) => alCambiar(e.target.value)}
@@ -85,7 +97,12 @@ export function CampoDireccion({
         />
         {botonExtra}
       </div>
-      {buscando && <p className="textoSuave">Buscando direcciones…</p>}
+      {buscando && (
+        <p className="textoSuave" role="status" aria-live="polite">
+          Buscando direcciones…
+        </p>
+      )}
+      {errorBusqueda && <p className="textoSuave" role="status">{errorBusqueda}</p>}
       {abierta && sugerencias.length > 0 && (
         <ul className="campoDireccion__lista">
           {sugerencias.map((sugerencia) => (
